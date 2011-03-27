@@ -5,6 +5,7 @@
 # 1. set bunko as landscape
 # 2. scan-bunko
 
+# set first page (front face) bottom 
 # landscape
 
 require 'optparse'
