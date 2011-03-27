@@ -1,6 +1,6 @@
 #!/usr/bin/ruby
 
-# usage: merge-to-pdf [-o output.pdf] file|dir...
+# usage: images2pdf [-o output.pdf] file|dir...
 
 require 'optparse'
 require 'tmpdir'
@@ -36,7 +36,7 @@ if !$opt_o && STDOUT.tty?
 end
 out = $opt_o || '-'
 
-Dir.mktmpdir('merge-to-pdf') {|d|
+Dir.mktmpdir('images2pdf') {|d|
   fs = []
   Find.find(*ARGV) {|path|
     next unless File.file? path
@@ -50,12 +50,29 @@ Dir.mktmpdir('merge-to-pdf') {|d|
     when /\.pdf\z/i
       STDERR.puts "use #{f.inspect} as is." if $opt_verbose
       pdfs << f
-    when /\.(pnm|pbm|pgm|ppm|xpm|gif|lbm|tga|pcx|jpe?g|tiff?|png|ps|eps)\z/i
+    when /\.(tiff?)\z/i
+      STDERR.puts "convert #{f.inspect} to pdf." if $opt_verbose
+      n = num_generated
+      num_generated += 1
+      tf = "#{d}/t#{n}.pnm"
+      ef = "#{d}/t#{n}.err"
+      of = "#{d}/t#{n}.pdf"
+      system("tifftopnm --headerdump #{f} > #{tf} 2> #{ef}") # xxx
+      info = File.read(ef)
+      sam2p_dpi = 72
+      if %r{Resolution: (\d+), (\d+) pixels/inch} =~ info
+        dpi = $1.to_i
+        # sam2p 0.47 generates bigger image for bigger resolution... sigh.
+        sam2p_dpi = 72 * (72.0 / dpi)
+      end
+      system("sam2p", "-j:quiet", "-pdf:2", "-m:dpi:#{sam2p_dpi}", tf, of)
+      pdfs << of
+    when /\.(pnm|pbm|pgm|ppm|xpm|gif|lbm|tga|pcx|jpe?g|png|ps|eps)\z/i
       STDERR.puts "convert #{f.inspect} to pdf." if $opt_verbose
       n = num_generated
       num_generated += 1
       of = "#{d}/t#{n}.pdf"
-      system("sam2p", "-j:quiet", "-pdf:2", "-m:dpi:300", f, of)
+      system("sam2p", "-j:quiet", "-pdf:2", f, of)
       pdfs << of
     else
       warn "unexpected file type: #{f.inspect}"
