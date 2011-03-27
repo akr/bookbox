@@ -1,0 +1,69 @@
+#!/usr/bin/ruby
+
+# usage: merge-to-pdf [-o output.pdf] file|dir...
+
+require 'optparse'
+require 'tmpdir'
+require 'find'
+
+def err(mesg)
+  STDERR.puts mesg
+  exit false
+end
+
+def strnumsortkey(s)
+  a = []
+  s.scan(/(\d+)|\D+/) {
+    if $1
+      a << 1 << $&.to_i
+    else
+      a << 2 << $&
+    end
+  }
+  a
+end
+
+$opt_o = nil
+$opt_verbose = false
+op = OptionParser.new
+op.def_option('-o OUTPUTFILE', '--output OUTPUTFILE', 'output PDF file') {|arg| $opt_o = arg }
+op.def_option('--verbose', 'verbose mode') { $opt_verbose = true }
+
+op.parse(ARGV)
+
+if !$opt_o && STDOUT.tty?
+  err "output to terminal"
+end
+out = $opt_o || '-'
+
+Dir.mktmpdir('merge-to-pdf') {|d|
+  fs = []
+  Find.find(*ARGV) {|path|
+    next unless File.file? path
+    fs << path
+  }
+  fs = fs.sort_by {|f| strnumsortkey(f) }
+  pdfs = []
+  num_generated = 0
+  fs.each {|f|
+    case f
+    when /\.pdf\z/i
+      STDERR.puts "use #{f.inspect} as is." if $opt_verbose
+      pdfs << f
+    when /\.(pnm|pbm|pgm|ppm|xpm|gif|lbm|tga|pcx|jpe?g|tiff?|png|ps|eps)\z/i
+      STDERR.puts "convert #{f.inspect} to pdf." if $opt_verbose
+      n = num_generated
+      num_generated += 1
+      of = "#{d}/t#{n}.pdf"
+      system("sam2p", "-j:quiet", "-pdf:2", "-m:dpi:300", f, of)
+      pdfs << of
+    else
+      warn "unexpected file type: #{f.inspect}"
+    end
+  }
+  STDERR.puts "generate result pdf: #{out.inspect}" if $opt_verbose
+  commandline = ["pdftk"]
+  commandline.concat pdfs
+  commandline << "cat" << "output" << out
+  system(*commandline)
+}
