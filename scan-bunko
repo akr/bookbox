@@ -16,7 +16,7 @@ def create_fresh_output_directory
   begin
     outdir = "#{outdir_base}#{n}"
     Dir.mkdir outdir
-  rescue Errno::EEXIsT
+  rescue Errno::EEXIST
     n += 1
     retry
   end
@@ -39,18 +39,19 @@ end
 
 Dir.chdir outdir
 
-nums = Dir["raw*.pnm\0out*.pnm"].reject {|f|
-  /\A(raw|out)([0-9]+)\.pnm\z/ !~ f
+nums = Dir["raw*.tiff\0out*.tiff"].reject {|f|
+  /\A(raw|out)([0-9]+)\.tiff\z/ !~ f
 }.map {|f| f[/\d+/].to_i }
 if nums.empty?
   start = 0
 else
-  start = num.max + 1
+  start = nums.max + 1
 end
 
 system(
   "scanimage",
-  "--batch=raw%d.pnm",
+  "--format=tiff",
+  "--batch=raw%d.tiff",
   "--batch-start=#{start}",
   "--source", "ADF Duplex",
   "--mode", "Color",
@@ -59,15 +60,25 @@ system(
   "-x", "160",
   "--ald=yes")
 
-fs = Dir["raw*.pnm"].reject {|f| /\Araw([0-9]+)\.pnm\z/ !~ f }
+fs = Dir["raw*.tiff"].reject {|f| /\Araw([0-9]+)\.tiff\z/ !~ f }
 fs = fs.sort_by {|f| f[/\d+/].to_i }
 
-fmt = "out%0#{fs.length.to_s.length}d.pnm"
+numdigits = fs.last[/\d+/].length
+fmt = "out%0#{numdigits}d.tiff"
+
+Dir["out*.tiff"].each {|f|
+  next if /\Aout([0-9]+)\.tiff\z/ !~ f
+  digits = $1
+  if digits.length != numdigits
+    nf = fmt % digits.to_i
+    File.rename f, nf
+  end
+}
 
 fs.each {|f|
   n = f[/\d+/].to_i
   of = fmt % n
-  angle = n % 2 == 0 ? "-ccw" : "-cw"
-  system("pnmflip #{angle} #{f} > #{of}")
+  angle = n % 2 == 0 ? "-R 270" : "-R 90"
+  system("tiffcrop #{angle} #{f} #{of}")
   File.delete f
 }
