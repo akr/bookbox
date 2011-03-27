@@ -39,9 +39,19 @@ end
 
 Dir.chdir outdir
 
+nums = Dir["raw*.pnm\0out*.pnm"].reject {|f|
+  /\A(raw|out)([0-9]+)\.pnm\z/ !~ f
+}.map {|f| f[/\d+/].to_i }
+if nums.empty?
+  start = 0
+else
+  start = num.max + 1
+end
+
 system(
   "scanimage",
-  "--batch=out-raw%d.pnm",
+  "--batch=raw%d.pnm",
+  "--batch-start=#{start}",
   "--source", "ADF Duplex",
   "--mode", "Color",
   "--resolution", "300",
@@ -49,15 +59,15 @@ system(
   "-x", "160",
   "--ald=yes")
 
-fs = Dir["out-raw*.pnm"].reject {|f| /\Aout-raw([0-9]+)\.pnm\z/ !~ f }
+fs = Dir["raw*.pnm"].reject {|f| /\Araw([0-9]+)\.pnm\z/ !~ f }
 fs = fs.sort_by {|f| f[/\d+/].to_i }
 
-fmt = "out%0#{fs.length.to_s.length}d.ppm"
+fmt = "out%0#{fs.length.to_s.length}d.pnm"
 
 fs.each {|f|
   n = f[/\d+/].to_i
   of = fmt % n
-  angle = n % 2 == 0 ? "-90" : "90"
-  system("pnmrotate #{angle} #{f} > #{of}")
+  angle = n % 2 == 0 ? "-ccw" : "-cw"
+  system("pnmflip #{angle} #{f} > #{of}")
   File.delete f
 }
