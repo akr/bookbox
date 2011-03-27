@@ -1,0 +1,62 @@
+#!/usr/bin/ruby
+
+# usage:
+#
+# 1. set bunko as landscape
+# 2. scan-bunko
+
+# landscape
+
+require 'optparse'
+
+def create_fresh_output_directory
+  outdir_base = 'outdir'
+  n = 1
+  begin
+    outdir = "#{outdir_base}#{n}"
+    Dir.mkdir outdir
+  rescue Errno::EEXIsT
+    n += 1
+    retry
+  end
+  outdir
+end
+
+op = OptionParser.new
+$opt_o = nil
+op.def_option('-o DIR', '--output DIR', 'output directory') {|arg| $opt_o = arg }
+op.parse(ARGV)
+
+if $opt_o
+  outdir = $opt_o
+  unless File.directory? outdir
+    Dir.mkdir outdir
+  end
+else
+  outdir = create_fresh_output_directory
+end
+
+Dir.chdir outdir
+
+system(
+  "scanimage",
+  "--batch=out-raw%d.pnm",
+  "--source", "ADF Duplex",
+  "--mode", "Color",
+  "--resolution", "300",
+  "-l", "30",
+  "-x", "160",
+  "--ald=yes")
+
+fs = Dir["out-raw*.pnm"].reject {|f| /\Aout-raw([0-9]+)\.pnm\z/ !~ f }
+fs = fs.sort_by {|f| f[/\d+/].to_i }
+
+fmt = "out%0#{fs.length.to_s.length}d.ppm"
+
+fs.each {|f|
+  n = f[/\d+/].to_i
+  of = fmt % n
+  angle = n % 2 == 0 ? "-90" : "90"
+  system("pnmrotate #{angle} #{f} > #{of}")
+  File.delete f
+}
