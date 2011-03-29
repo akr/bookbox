@@ -1,4 +1,4 @@
-#!/usr/bin/ruby
+#!/usr/bin/env ruby
 
 # usage:
 #
@@ -9,6 +9,7 @@
 # landscape
 
 require 'optparse'
+require 'open3'
 
 def create_fresh_output_directory
   outdir_base = 'outdir'
@@ -25,7 +26,7 @@ end
 
 op = OptionParser.new
 $opt_o = nil
-op.def_option('-o DIR', '--output DIR', 'output directory') {|arg| $opt_o = arg }
+op.def_option('-d DIR', '--output-directory DIR', 'output directory') {|arg| $opt_o = arg }
 op.parse(ARGV)
 
 if $opt_o
@@ -39,8 +40,8 @@ end
 
 Dir.chdir outdir
 
-nums = Dir["raw*.tiff\0out*.tiff"].reject {|f|
-  /\A(raw|out)([0-9]+)\.tiff\z/ !~ f
+nums = Dir["raw*.pnm\0out*.png"].reject {|f|
+  /\A(raw|out)([0-9]+)\.(pnm|png)\z/ !~ f
 }.map {|f| f[/\d+/].to_i }
 if nums.empty?
   start = 0
@@ -48,26 +49,27 @@ else
   start = nums.max + 1
 end
 
+resolution_dpi = 300 # dot per inch
+resolution_dpm = (resolution_dpi / 25.4 * 1000).round # dot per meter
 system(
   "scanimage",
-  "--format=tiff",
-  "--batch=raw%d.tiff",
+  "--batch=raw%d.pnm",
   "--batch-start=#{start}",
   "--source", "ADF Duplex",
   "--mode", "Color",
-  "--resolution", "300",
+  "--resolution", resolution_dpi.to_s,
   "-l", "30",
   "-x", "160",
   "--ald=yes")
 
-fs = Dir["raw*.tiff"].reject {|f| /\Araw([0-9]+)\.tiff\z/ !~ f }
+fs = Dir["raw*.pnm"].reject {|f| /\Araw([0-9]+)\.pnm\z/ !~ f }
 fs = fs.sort_by {|f| f[/\d+/].to_i }
 
 numdigits = fs.last[/\d+/].length
-fmt = "out%0#{numdigits}d.tiff"
+fmt = "out%0#{numdigits}d.png"
 
-Dir["out*.tiff"].each {|f|
-  next if /\Aout([0-9]+)\.tiff\z/ !~ f
+Dir["out*.png"].each {|f|
+  next if /\Aout([0-9]+)\.png\z/ !~ f
   digits = $1
   if digits.length != numdigits
     nf = fmt % digits.to_i
@@ -78,7 +80,16 @@ Dir["out*.tiff"].each {|f|
 fs.each {|f|
   n = f[/\d+/].to_i
   of = fmt % n
-  angle = n % 2 == 0 ? "-R 270" : "-R 90"
-  system("tiffcrop #{angle} #{f} #{of}")
+  tf = of + ".part"
+  #angle = n % 2 == 0 ? "-R 270" : "-R 90"
+  #system("tiffcrop #{angle} #{f} #{of}")
+  angle = n % 2 == 0 ? "-cw" : "-ccw"
+  Open3.pipeline(
+    ["pnmflip", angle, f],
+    ["pnmtopng",
+      "-phys", resolution_dpm.to_s, resolution_dpm.to_s, "1",
+      "-compression", "9",
+      :out => tf])
+  File.rename tf, of
   File.delete f
 }
