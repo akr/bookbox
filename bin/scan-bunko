@@ -57,14 +57,16 @@ fs = fs.sort_by {|f| f[/\d+/].to_i }
 fs.each {|f|
   n = f[/\d+/].to_i
   next if n < start
-  index_hash["i"] ||= {}
-  index_hash["i"][f] = ["scan"]
+  index_hash["s"] ||= {}
+  index_hash["s"][f] = { "dpi_x" => resolution_dpi,
+                         "dpi_y" => resolution_dpi }
   f2 = f.sub(/\Aout/, 'fullsize').sub(/\.pnm\z/, '.png')
   angle = (n-start) % 2 == 0 ? "ccw" : "cw"
-  index_hash["i"][f2] = [["file", f],
-                         ["resolution", resolution_dpi],
-                         ["flip", angle],
-                         ["convert", "png"]]
+  index_hash["i"] ||= {}
+  index_hash["i"][f2] = ["convert", "png",
+                          ["flip", angle,
+                            ["resolution", resolution_dpi,
+                              ["make", f]]]]
   index_hash["list"] ||= []
   index_hash["list"] << f2
 }
