@@ -3,45 +3,28 @@
 # usage:
 #
 # 1. set bunko as landscape
-# 2. scan-bunko
+# 2. run scan-bunko
 
-# set first page (front face) bottom 
+# set the first page (front face) bottom 
 # landscape
 
 require 'optparse'
+require 'json'
 require 'open3'
 
-def create_fresh_output_directory
-  outdir_base = 'outdir'
-  n = 1
-  begin
-    outdir = "#{outdir_base}#{n}"
-    Dir.mkdir outdir
-  rescue Errno::EEXIST
-    n += 1
-    retry
-  end
-  outdir
-end
-
 op = OptionParser.new
-$opt_o = nil
-op.def_option('-d DIR', '--output-directory DIR', 'output directory') {|arg| $opt_o = arg }
+$opt_d = '.'
+op.def_option('-h', '--help', 'show help message') { puts op; exit 0 }
+op.def_option('-d DIR', '--destination-directory DIR', 'destination directory') {|arg| $opt_d = arg }
 op.parse(ARGV)
 
-if $opt_o
-  outdir = $opt_o
-  unless File.directory? outdir
-    Dir.mkdir outdir
-  end
-else
-  outdir = create_fresh_output_directory
+outdir = $opt_d
+unless File.directory? outdir
+  Dir.mkdir outdir
 end
 
-Dir.chdir outdir
-
-nums = Dir["raw*.pnm\0out*.png"].reject {|f|
-  /\A(raw|out)([0-9]+)\.(pnm|png)\z/ !~ f
+nums = Dir.entries(outdir).reject {|f|
+  /\Aout([0-9]+)\.pnm\z/ !~ f
 }.map {|f| f[/\d+/].to_i }
 if nums.empty?
   start = 0
@@ -50,10 +33,9 @@ else
 end
 
 resolution_dpi = 300 # dot per inch
-resolution_dpm = (resolution_dpi / 25.4 * 1000).round # dot per meter
 system(
   "scanimage",
-  "--batch=raw%04d.pnm",
+  "--batch=#{outdir}/out%04d.pnm",
   "--batch-start=#{start}",
   "--source", "ADF Duplex",
   "--mode", "Color",
@@ -62,34 +44,33 @@ system(
   "-x", "160",
   "--ald=yes")
 
-fs = Dir["raw*.pnm"].reject {|f| /\Araw([0-9]+)\.pnm\z/ !~ f }
+scan_json_path = "#{outdir}/scan.json"
+if File.exist? scan_json_path
+  index_hash = File.open(scan_json_path) {|f| JSON.load(f) }
+else
+  index_hash = {}
+end
+
+fs = Dir.entries(outdir).reject {|f| /\Aout([0-9]+)\.pnm\z/ !~ f }
 fs = fs.sort_by {|f| f[/\d+/].to_i }
-
-numdigits = fs.last[/\d+/].length
-fmt = "out%0#{numdigits}d.png"
-
-Dir["out*.png"].each {|f|
-  next if /\Aout([0-9]+)\.png\z/ !~ f
-  digits = $1
-  if digits.length != numdigits
-    nf = fmt % digits.to_i
-    File.rename f, nf
-  end
-}
 
 fs.each {|f|
   n = f[/\d+/].to_i
-  of = fmt % n
-  tf = of + ".part"
-  #angle = n % 2 == 0 ? "-R 270" : "-R 90"
-  #system("tiffcrop #{angle} #{f} #{of}")
-  angle = n % 2 == 0 ? "-cw" : "-ccw"
-  Open3.pipeline(
-    ["pnmflip", angle, f],
-    ["pnmtopng",
-      "-phys", resolution_dpm.to_s, resolution_dpm.to_s, "1",
-      "-compression", "9",
-      :out => tf])
-  File.rename tf, of
-  File.delete f
+  next if n < start
+  index_hash["i"] ||= {}
+  index_hash["i"][f] = ["scan"]
+  f2 = f.sub(/\Aout/, 'fullsize').sub(/\.pnm\z/, '.png')
+  angle = (n-start) % 2 == 0 ? "ccw" : "cw"
+  index_hash["i"][f2] = [["file", f],
+                         ["resolution", resolution_dpi],
+                         ["flip", angle],
+                         ["convert", "png"]]
+  index_hash["list"] ||= []
+  index_hash["list"] << f2
 }
+
+tmp_scan_json_path = scan_json_path + '.part'
+File.open(tmp_scan_json_path, 'w') {|f|
+  f.puts JSON.pretty_generate(index_hash)
+}
+File.rename tmp_scan_json_path, scan_json_path
