@@ -1,0 +1,71 @@
+require 'dep'
+
+module BookBox
+end
+
+class BookBox::ImageMaker < ::Dep
+
+  source /\Ascan\.json\z/
+
+  rule(/\Aout.*pnm\z/) {|match, out_fn|
+    unless file_stat(out_fn)
+      raise ArgumentError, "no source image: #{out_fn}"
+    end
+    scan_params = read_json("scan.json")
+    scan_params[out_fn] || {}
+  }
+
+  primitive(:image_stem_list) {
+    result = []
+    Dir.entries(".").each {|f|
+      next if f !~ %r{\Aout(.*)\.pnm\z}m
+      result << $1
+    }
+    result.sort_by {|stem| strnumsortkey(stem) }
+  }
+
+  rule(/\Afullsize(.*)\.png\z/, 'out\1.pnm') {|match, ff, (of, of_attr)|
+    angle = of_attr["rotate"] || 0
+    dpi = of_attr["dpi"] || 72
+    dpm = (dpi / 25.4 * 1000).round
+    run_pipeline of, ff, make_flip_command(angle), %W[pnmtopng -phys #{dpm} #{dpm} 1]
+  }
+
+  rule(/\Asmall(.*)_c\.pnm\z/, 'out\1.pnm') {|match, scf, (of, of_attr)|
+    angle = of_attr["rotate"] || 0
+    run_pipeline of, scf, make_flip_command(angle), ["pnmscale", "-width=80"]
+  }
+
+  rule(/\Asmall(.*)_g\.pnm\z/, 'small\1_c.pnm') {|match, sgf, (scf, _)|
+    run_pipeline scf, sgf, ["ppmtopgm"]
+  }
+
+  rule(/\Asmall(.*)_m\.pnm\z/, 'small\1_g.pnm') {|match, smf, (sgf, _)|
+    run_pipeline sgf, smf, ["pgmtopbm"]
+  }
+
+  rule(/\A(.*)\.png\z/, '\1.pnm') {|match, png, (pnm, _)|
+    run_pipeline pnm, png, ["pnmtopng"]
+  }
+
+  ambiguous(/\Afullsize(.*)\.png\z/, /\A(.*)\.png\z/)
+
+  phony(:all_fullsize_images) { image_stem_list.each {|stem| make("fullsize#{stem}.png") } }
+  phony(:all_color_thumbnails) { image_stem_list.each {|stem| make("small#{stem}_c.png") } }
+  phony(:all_gray_thumbnails) { image_stem_list.each {|stem| make("small#{stem}_g.png") } }
+  phony(:all_mono_thumbnails) { image_stem_list.each {|stem| make("small#{stem}_m.png") } }
+  phony(:all_thumbnails) { all_color_thumbnails; all_gray_thumbnails; all_mono_thumbnails }
+  phony(:all_images) { all_thumbnails; all_fullsize_images }
+
+  def make_flip_command(angle)
+    case angle
+    when 0 then return nil
+    when 90 then flip_arg = '-r90'
+    when 180 then flip_arg = '-r180'
+    when 270 then flip_arg = '-r270'
+    else raise ArgumentError, "unexpected angle: #{angle.inspect}"
+    end
+    return ["pnmflip", flip_arg]
+  end
+
+end

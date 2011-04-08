@@ -1,13 +1,12 @@
 #!/usr/bin/env ruby
 
 require_relative '../lib/bookbox'
-require_relative '../lib/bookbox/imageset'
 
 require 'optparse'
 require 'webrick'
 require 'erb'
 
-$opt_image_dir = '.'
+#$opt_image_dir = '.'
 $opt_docroot = File.dirname(File.dirname(File.realpath(__FILE__))) + "/docroot"
 p $opt_docroot
 
@@ -17,7 +16,7 @@ include ERB::Util
 def op_server
   op = OptionParser.new
   op.def_option('-h', '--help', 'show help message') { puts op; exit 0 }
-  op.def_option('-d DIR', '--image-dir DIR', 'image directory (default: ".")') {|arg| $opt_image_dir = arg }
+  #op.def_option('-d DIR', '--image-dir DIR', 'image directory (default: ".")') {|arg| $opt_image_dir = arg }
   op
 end
 
@@ -32,10 +31,10 @@ end
 class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
   include ServletUtil
 
-  def initialize(server, docroot, is)
+  def initialize(server, docroot, im)
     @config = server.config
     @docroot = docroot
-    @is = is
+    @im = im
   end
 
   def erb_filter(req, res, content)
@@ -69,11 +68,11 @@ end
 class ImageDirHandler < WEBrick::HTTPServlet::AbstractServlet
   include ServletUtil
 
-  def initialize(server, is)
-    @is = is
+  def initialize(server, im)
+    @im = im
     @server = server
     @config = server.config
-    @image_dir = @is.image_dir
+    @image_dir = '.'
   end
 
   def do_GET(req, res)
@@ -90,16 +89,16 @@ class ImageDirHandler < WEBrick::HTTPServlet::AbstractServlet
     end
     return err(req, res, "unexpected uri: #{req.request_uri}") if %r{\A/i/[^/]+\z} !~ req.path
     basename = req.path.sub(%r{\A.*/}m, '')
-    filename = @is.make(basename)
-    res.filename = filename
-    WEBrick::HTTPServlet::DefaultFileHandler.get_instance(@config, filename).service(req, res)
+    @im.make(basename)
+    res.filename = basename
+    WEBrick::HTTPServlet::DefaultFileHandler.get_instance(@config, basename).service(req, res)
     nil
   end
 end
 
 def main_server(argv)
   op_server.parse(argv)
-  is = ImageSet.new($opt_image_dir)
+  im = BookBox::ImageMaker.new
   webrick_config = {
     :DocumentRoot => '/home/username/public_html/',
     :BindAddress => '127.0.0.1',
@@ -110,9 +109,9 @@ def main_server(argv)
   trap("INT"){ srv.shutdown }
   trap("TERM"){ srv.shutdown }
   trap("QUIT"){ srv.shutdown }
-  srv.mount('', TopDirHandler, $opt_docroot, is)
+  srv.mount('', TopDirHandler, $opt_docroot, im)
   #srv.mount('/t', WEBrick::HTTPServlet::FileHandler, File.expand_path($opt_image_dir), :FancyIndexing => true)
-  srv.mount('/i/', ImageDirHandler, is)
+  srv.mount('/i/', ImageDirHandler, im)
   srv.start
 end
 

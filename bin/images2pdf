@@ -1,6 +1,8 @@
-#!/usr/bin/ruby
+#!/usr/bin/env ruby
 
 # usage: images2pdf [-o output.pdf] file|dir...
+
+require_relative '../lib/bookbox'
 
 require 'optparse'
 require 'tmpdir'
@@ -9,18 +11,6 @@ require 'find'
 def err(mesg)
   STDERR.puts mesg
   exit false
-end
-
-def strnumsortkey(s)
-  a = []
-  s.scan(/(\d+)|\D+/) {
-    if $1
-      a << 1 << $&.to_i
-    else
-      a << 2 << $&
-    end
-  }
-  a
 end
 
 $opt_o = nil
