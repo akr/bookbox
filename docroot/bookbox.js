@@ -23,3 +23,15 @@ function set_image_color_mode(stem, mode) {
   o = document.getElementById("fullsize"+stem);
   o.href = o.href.replace(/_[cgm]\.png$/, '_' + mode + '.png');
 }
+
+function flip_lr() {
+  var rows = document.getElementById("pages").rows;
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var cells = row.cells;
+    var n = cells.length;
+    for (var j = cells.length-2; 0 <= j; j--) {
+      row.insertBefore(cells.item(j), null)
+    }
+  }
+}

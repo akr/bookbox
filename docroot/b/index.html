@@ -35,7 +35,8 @@
       <input id="<%= h(name) %>" type="hidden" name="<%= h(name) %>" value="<%= h(color_mode) %>">
       % }
     </form>
-    <table>
+    <a href="javascript:flip_lr()">&lt;-&gt;</a>
+    <table id="pages">
       % stems.each_slice(10) {|ss|
       <tr>
         % ss.each {|stem|
