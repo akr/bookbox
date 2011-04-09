@@ -16,9 +16,11 @@
     </script>
   </head>
   <body>
+    <a href="/">top</a>
     <a href="javascript:thumbnail_all_color(stems, 'c')">color all</a>
     <a href="javascript:thumbnail_all_color(stems, 'g')">gray all</a>
     <a href="javascript:thumbnail_all_color(stems, 'm')">mono all</a>
+    <a href="javascript:flip_lr()">L2R&lt;-&gt;R2L</a>
     <%= stems.length %> images
     % action = "/#{u(dir_num.to_s)}/submit"
     <form action="<%= h(action) %>" method="post">
@@ -28,7 +30,6 @@
       <input id="<%= h(name) %>" type="hidden" name="<%= h(name) %>" value="<%= h(val) %>">
       % }
     </form>
-    <a href="javascript:flip_lr()">&lt;-&gt;</a>
     <table id="pages">
       % num_cells = 10
       % stems.each_slice(num_cells) {|ss|
