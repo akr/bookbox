@@ -5,12 +5,14 @@ end
 
 class BookBox::ImageMaker < ::Dep
 
-  DIR = %r{\A(?<dir>/?(?:[^/]+/)*)}
-  STEM = /(?<stem>[-0-9]+)/
+  PDIR = %r{\A(?<dir>/?(?:[^/]+/)*)}
+  PSTEM = /(?<stem>-*[0-9]+)/
+  PCOLORMODE = /(?<colormode>[cgm])/
+  PBASE = %r{(?<base>(small|fullsize))}
 
-  source %r{#{DIR}scan\.json\z}
+  source %r{#{PDIR}scan\.json\z}
 
-  rule(%r{#{DIR}out#{STEM}\.pnm\z}) {|match, out_fn|
+  rule(%r{#{PDIR}out#{PSTEM}\.pnm\z}) {|match, out_fn|
     dir = match[:dir]
     unless file_stat(out_fn)
       raise ArgumentError, "no source image: #{out_fn}"
@@ -22,44 +24,71 @@ class BookBox::ImageMaker < ::Dep
   primitive(:image_stem_list) {|dir|
     result = []
     Dir.entries(dir).each {|f|
-      next if f !~ %r{#{DIR}out#{STEM}\.pnm\z}mo
+      next if f !~ %r{#{PDIR}out#{PSTEM}\.pnm\z}mo
       result << $~["stem"]
     }
     result.sort_by {|stem| strnumsortkey(stem) }
   }
 
-  rule(%r{#{DIR}fullsize#{STEM}\.png\z}, '\k<dir>out\k<stem>.pnm') {|match, fullsize_fn, (out_fn, out_attr)|
-    angle = out_attr["rotate"] || 0
-    dpi = out_attr["dpi"] || 72
+  rule(%r{#{PDIR}fullsize#{PSTEM}_c\.pnm\z}, '\k<dir>out\k<stem>.pnm') {|match, fullsize_fn, (out_fn, out_att)|
+    angle = out_att["rotate"] || 0
+    run_pipeline out_fn, fullsize_fn, make_flip_command(angle)
+    out_att = out_att.dup
+    out_att.delete "rotate"
+    out_att
+  }
+
+  rule(%r{#{PDIR}fullsize#{PSTEM}_#{PCOLORMODE}\.png\z},
+         '\k<dir>fullsize\k<stem>_\k<colormode>.pnm') {|match, png_fn, (pnm_fn, pnm_att)|
+    dpi = pnm_att["dpi"] || 72
     dpm = (dpi / 25.4 * 1000).round
-    run_pipeline out_fn, fullsize_fn, make_flip_command(angle), %W[pnmtopng -phys #{dpm} #{dpm} 1]
+    run_pipeline pnm_fn, png_fn, %W[pnmtopng -phys #{dpm} #{dpm} 1]
   }
 
-  rule(%r{#{DIR}small#{STEM}_c\.pnm\z}, '\k<dir>out\k<stem>.pnm') {|match, scf, (out_fn, out_attr)|
-    angle = out_attr["rotate"] || 0
+  rule(%r{#{PDIR}small#{PSTEM}_c\.pnm\z}, '\k<dir>out\k<stem>.pnm') {|match, scf, (out_fn, out_att)|
+    angle = out_att["rotate"] || 0
     run_pipeline out_fn, scf, make_flip_command(angle), ["pnmscale", "-width=80"]
+    out_att = out_att.dup
+    out_att.delete "rotate"
+    out_att
   }
 
-  rule(%r{#{DIR}small#{STEM}_g\.pnm\z}, '\k<dir>small\k<stem>_c.pnm') {|match, sgf, (scf, _)|
+  rule(%r{#{PDIR}#{PBASE}#{PSTEM}_g\.pnm\z}, '\k<dir>\k<base>\k<stem>_c.pnm') {|match, sgf, (scf, att)|
     run_pipeline scf, sgf, ["ppmtopgm"]
+    att
   }
 
-  rule(%r{#{DIR}small#{STEM}_m\.pnm\z}, '\k<dir>small\k<stem>_g.pnm') {|match, smf, (sgf, _)|
+  rule(%r{#{PDIR}small#{PSTEM}_m\.pnm\z}, '\k<dir>small\k<stem>_g.pnm') {|match, smf, (sgf, att)|
     run_pipeline sgf, smf, %w[pgmtopbm -threshold -value 0.8]
+    att
   }
 
-  rule(%r{#{DIR}(?<basename>[^/]+)\.png\z}, '\k<dir>\k<basename>.pnm') {|match, png, (pnm, _)|
+  rule(%r{#{PDIR}fullsize#{PSTEM}_m\.pnm\z}, '\k<dir>fullsize\k<stem>_g.pnm') {|match, smf, (sgf, att)|
+    run_pipeline sgf, smf, %w[pgmtopbm -threshold]
+    att
+  }
+
+  rule(%r{#{PDIR}(?<basename>[^/]+)\.png\z}, '\k<dir>\k<basename>.pnm') {|match, png, (pnm, att)|
     run_pipeline pnm, png, ["pnmtopng"]
+    att
   }
 
-  ambiguous(%r{#{DIR}fullsize#{STEM}\.png\z}, %r{#{DIR}(?<basename>[^/]+)\.png\z})
+  ambiguous(%r{#{PDIR}fullsize#{PSTEM}_#{PCOLORMODE}\.png\z}, %r{#{PDIR}(?<basename>[^/]+)\.png\z})
 
-  phony(:all_fullsize_images) { image_stem_list(".").each {|stem| make("fullsize#{stem}.png") } }
+  phony(:all_fullsize_images) { image_stem_list(".").each {|stem| make("fullsize#{stem}_c.png") } }
   phony(:all_color_thumbnails) { image_stem_list(".").each {|stem| make("small#{stem}_c.png") } }
   phony(:all_gray_thumbnails) { image_stem_list(".").each {|stem| make("small#{stem}_g.png") } }
   phony(:all_mono_thumbnails) { image_stem_list(".").each {|stem| make("small#{stem}_m.png") } }
   phony(:all_thumbnails) { all_color_thumbnails; all_gray_thumbnails; all_mono_thumbnails }
-  phony(:all_images) { all_thumbnails; all_fullsize_images }
+  phony(:all_images) {
+    %w[small fullsize].each {|base|
+      image_stem_list(".").each {|stem|
+        %w[c g m].each {|colormode|
+          make(File.realdirpath("#{base}#{stem}_#{colormode}.png"))
+        }
+      }
+    }
+  }
 
   def make_flip_command(angle)
     case angle

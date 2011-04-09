@@ -2,6 +2,12 @@
 % dir_num = %r{\A/(\d+)(?:\z|/)}.match(req.path)[1].to_i
 % dir = @dirs[dir_num]
 % stems = @im.image_stem_list(dir)
+% if File.file?("#{dir}/param.json")
+%   param = File.open("#{dir}/param.json") {|f| JSON.load(f) }
+% else
+%   param = {}
+% end
+% default_color_mode = 'c'
 <html>
   <head>
     <title>BookBox</title>
@@ -15,22 +21,40 @@
     </script>
   </head>
   <body>
+    <a href="javascript:thumbnail_all_color(stems, 'c')">color all</a>
+    <a href="javascript:thumbnail_all_color(stems, 'g')">gray all</a>
+    <a href="javascript:thumbnail_all_color(stems, 'm')">mono all</a>
+    % action = "/#{u(dir_num.to_s)}/submit"
+    <form action="<%= h(action) %>" method="post">
+      <input type="submit" value="save">
+      % stems.each {|stem|
+      %   name = "colormode#{stem}"
+      %   out_fn = "out#{stem}.pnm"
+      %   color_mode = default_color_mode
+      %   color_mode = param[out_fn]["colormode"] if param[out_fn] && param[out_fn]["colormode"]
+      <input id="<%= h(name) %>" type="hidden" name="<%= h(name) %>" value="<%= h(color_mode) %>">
+      % }
+    </form>
     <table>
       % stems.each_slice(10) {|ss|
       <tr>
         % ss.each {|stem|
         <td>
-          % name = "img#{stem[/\d+/]}"
-          % color_thumbnail = "/i/#{u(dir_num.to_s)}/#{u("small#{stem}_c.png")}"
+          % name = "img#{stem}"
+          % color_mode = default_color_mode
+          % out_fn = "out#{stem}.pnm"
+          % color_mode = default_color_mode
+          % color_mode = param[out_fn]["colormode"] if param[out_fn] && param[out_fn]["colormode"]
+          % thumbnail = "/i/#{u(dir_num.to_s)}/#{u("small#{stem}_#{color_mode}.png")}"
           % code = "change_thumbnail('#{stem}')"
-          <img name="<%= h(name) %>" src="<%= h(color_thumbnail) %>" onclick="<%= h(code) %>">
+          % fullsize = "/i/#{u(dir_num.to_s)}/#{u("fullsize#{stem}_c.png")}"
+          % fullsize_id = "fullsize#{stem}"
+          <img name="<%= h(name) %>" src="<%= h(thumbnail) %>" onclick="<%= h(code) %>">
+          <a id="<%= h(fullsize_id) %>" href="<%= h(fullsize) %>">fullsize</a>
         </td>
         % }
       </tr>
       % }
     </table>
-    <a href="javascript:thumbnail_all_color(stems, 'c')">all mono</a>
-    <a href="javascript:thumbnail_all_color(stems, 'g')">all gray</a>
-    <a href="javascript:thumbnail_all_color(stems, 'm')">all mono</a>
   </body>
 </html>

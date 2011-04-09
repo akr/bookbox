@@ -10,3 +10,9 @@ def strnumsortkey(s)
   a
 end
 
+def partfile(filename)
+  partfilename = filename + ".part"
+  res = yield partfilename
+  File.rename partfilename, filename
+  res
+end

@@ -27,6 +27,12 @@ module ServletUtil
     res.body = "<title>#{h mesg}</title>#{h mesg}"
     nil
   end
+
+  def redirect(res, uri)
+    res['content-type'] = 'text/html'
+    res.set_redirect(WEBrick::HTTPStatus::MovedPermanently, uri)
+    nil
+  end
 end
 
 class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
@@ -57,7 +63,7 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
     filename = filename.sub(%r{\A/(\d+)(/|\z)}) {
       # http://host:port/nnn/index.html => docroot/b/index.html
       dir_num = $1.to_i
-      return err(req, res, "unexpected directory number: #{dir_num}") if @dirs.length <= $1.to_i
+      return err(req, res, "unexpected directory number: #{dir_num}") if @dirs.length <= dir_num
       "/b#{$2}"
     }
     filename = @docroot + filename
@@ -72,6 +78,41 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
     res.body = content
     nil
   end
+
+  def do_POST(req, res)
+    case req.path
+    when %r{\A/(\d+)/submit\z}
+      dir_num = $1.to_i
+      return err(req, res, "unexpected directory number: #{dir_num}") if @dirs.length <= dir_num
+      save(dir_num, req.query)
+      redirect(res, "/#{$1}/")
+    else
+      err(req, res, "unexpected uri: #{req.request_uri}")
+    end
+    nil
+  end
+
+  def save(dir_num, query)
+    dir = @dirs[dir_num]
+    stems = @im.image_stem_list(dir)
+    param = {}
+    query.each {|k,v|
+      case k
+      when /\Acolormode(\d+)\z/
+        stem = stems[$1.to_i]
+        next if !stem
+        next if !%w[c g m].include?(v)
+        out_fn = "out#{stem}.pnm"
+        param[out_fn] ||= {}
+        param[out_fn]['colormode'] = v
+      end
+    }
+    partfile("#{dir}/param.json") {|fn|
+      File.open(fn, "w") {|f|
+        f.puts JSON.pretty_generate(param)
+      }
+    }
+  end
 end
 
 class ImageDirHandler < WEBrick::HTTPServlet::AbstractServlet
@@ -82,12 +123,6 @@ class ImageDirHandler < WEBrick::HTTPServlet::AbstractServlet
     @server = server
     @config = server.config
     @dirs = dirs
-  end
-
-  def redirect(res, uri)
-    res['content-type'] = 'text/html'
-    res.set_redirect(WEBrick::HTTPStatus::MovedPermanently, uri)
-    nil
   end
 
   def do_GET(req, res)
@@ -117,6 +152,7 @@ class ImageDirHandler < WEBrick::HTTPServlet::AbstractServlet
     end
     nil
   end
+
 end
 
 def main_server(argv)
