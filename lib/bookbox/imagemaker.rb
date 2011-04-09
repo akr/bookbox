@@ -10,7 +10,7 @@ class BookBox::ImageMaker < ::Dep
 
   source %r{\Ascan\.json\z}
 
-  rule(%r{\Aout#{STEM}pnm\z}) {|match, out_fn|
+  rule(%r{\Aout#{STEM}\.pnm\z}) {|match, out_fn|
     unless file_stat(out_fn)
       raise ArgumentError, "no source image: #{out_fn}"
     end
