@@ -208,7 +208,7 @@ class Dep
       end
     }
     if matched.empty?
-      raise ArgumentError, "no rule to make #{filename}"
+      raise ArgumentError, "no rule for #{filename}"
     end
     if matched.length == 1
       choosen_output_pattern, choosen_input_repl_list, choosen_block = matched[0]

@@ -8,14 +8,15 @@ require 'erb'
 
 #$opt_image_dir = '.'
 $opt_docroot = File.dirname(File.dirname(File.realpath(__FILE__))) + "/docroot"
-p $opt_docroot
+$opt_verbose = false
 
 include ERB::Util
 
-
 def op_server
   op = OptionParser.new
+  op.banner = 'Usage: bookbox server directory...'
   op.def_option('-h', '--help', 'show help message') { puts op; exit 0 }
+  op.def_option('--verbose', 'verbose mode') { $opt_verbose = true }
   #op.def_option('-d DIR', '--image-dir DIR', 'image directory (default: ".")') {|arg| $opt_image_dir = arg }
   op
 end
@@ -31,10 +32,11 @@ end
 class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
   include ServletUtil
 
-  def initialize(server, docroot, im)
+  def initialize(server, docroot, im, dirs)
     @config = server.config
     @docroot = docroot
     @im = im
+    @dirs = dirs
   end
 
   def erb_filter(req, res, content)
@@ -44,14 +46,21 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
 
   def do_GET(req, res)
     #p [:TopDirHandler, req.path]
-    filename = @docroot.dup
+    filename = ''
     path = req.path
-    path = '/index.html' if path == '/'
+    path += 'index.html' if %r{/\z} =~ path
     path.scan(%r{/([^/]*)}) {
       seg = $1
       return err(req, res, "path contains #{seg.inspect}") if seg == '.' || seg == '..'
       filename << '/' << seg
     }
+    filename = filename.sub(%r{\A/(\d+)(/|\z)}) {
+      # http://host:port/nnn/index.html => docroot/b/index.html
+      dir_num = $1.to_i
+      return err(req, res, "unexpected directory number: #{dir_num}") if @dirs.length <= $1.to_i
+      "/b#{$2}"
+    }
+    filename = @docroot + filename
     return err(req, res, "file not found: #{filename}") unless File.file? filename
     content = File.read(filename)
     case filename
@@ -68,37 +77,53 @@ end
 class ImageDirHandler < WEBrick::HTTPServlet::AbstractServlet
   include ServletUtil
 
-  def initialize(server, im)
+  def initialize(server, im, dirs)
     @im = im
     @server = server
     @config = server.config
-    @image_dir = '.'
+    @dirs = dirs
+  end
+
+  def redirect(res, uri)
+    res['content-type'] = 'text/html'
+    res.set_redirect(WEBrick::HTTPStatus::MovedPermanently, uri)
+    nil
   end
 
   def do_GET(req, res)
     #p [:ImageDirHandler, req.path]
-    if req.path == '/i'
-      res['content-type'] = 'text/html'
-      res.set_redirect(WEBrick::HTTPStatus::MovedPermanently, '/i/')
-      return
-    end
-    if req.path == '/i/'
-      res.filename = @image_dir
+    case req.path
+    when '/i'
+      redirect(res, "/i/")
+    when '/i/'
+      redirect(res, "/i/0/")
+    when %r{\A/i/(\d+)\z}
+      redirect(res, "/i/#{$1}/")
+    when %r{\A/i/(\d+)/\z}
+      dir = @dirs[dir_num = $1.to_i]
+      return err(req, res, "unexpected directory number: #{dir_num}") if !dir
+      res.filename = dir
       WEBrick::HTTPServlet::FileHandler.get_instance(@server, res.filename, :FancyIndexing => true).service(req, res)
-      return
+    when %r{\A/i/(\d+)/([^/]+)\z}
+      dir_num = $1.to_i
+      basename = $2
+      dir = @dirs[dir_num]
+      return err(req, res, "unexpected directory number: #{dir_num}") if !dir
+      res.filename = "#{dir}/#{basename}"
+      @im.make(res.filename)
+      WEBrick::HTTPServlet::DefaultFileHandler.get_instance(@config, res.filename).service(req, res)
+    else
+      err(req, res, "unexpected uri: #{req.request_uri}")
     end
-    return err(req, res, "unexpected uri: #{req.request_uri}") if %r{\A/i/[^/]+\z} !~ req.path
-    basename = req.path.sub(%r{\A.*/}m, '')
-    @im.make(basename)
-    res.filename = basename
-    WEBrick::HTTPServlet::DefaultFileHandler.get_instance(@config, basename).service(req, res)
     nil
   end
 end
 
 def main_server(argv)
-  op_server.parse(argv)
+  op_server.parse!(argv)
+  dirs = argv.map {|dir| File.realpath(dir) }
   im = BookBox::ImageMaker.new
+  im.verbose = true if $opt_verbose
   webrick_config = {
     :DocumentRoot => '/home/username/public_html/',
     :BindAddress => '127.0.0.1',
@@ -109,9 +134,9 @@ def main_server(argv)
   trap("INT"){ srv.shutdown }
   trap("TERM"){ srv.shutdown }
   trap("QUIT"){ srv.shutdown }
-  srv.mount('', TopDirHandler, $opt_docroot, im)
+  srv.mount('', TopDirHandler, $opt_docroot, im, dirs)
   #srv.mount('/t', WEBrick::HTTPServlet::FileHandler, File.expand_path($opt_image_dir), :FancyIndexing => true)
-  srv.mount('/i/', ImageDirHandler, im)
+  srv.mount('/i/', ImageDirHandler, im, dirs)
   srv.start
 end
 
