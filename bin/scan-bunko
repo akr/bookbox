@@ -46,33 +46,25 @@ system(
 
 scan_json_path = "#{outdir}/scan.json"
 if File.exist? scan_json_path
-  index_hash = File.open(scan_json_path) {|f| JSON.load(f) }
+  scan_params = File.open(scan_json_path) {|f| JSON.load(f) }
 else
-  index_hash = {}
+  scan_params = {}
 end
 
 fs = Dir.entries(outdir).reject {|f| /\Aout([0-9]+)\.pnm\z/ !~ f }
 fs = fs.sort_by {|f| f[/\d+/].to_i }
 
+scan_params["ViewerPreferencesDirection"] = 'R2L'
+
 fs.each {|f|
   n = f[/\d+/].to_i
   next if n < start
-  index_hash["s"] ||= {}
-  index_hash["s"][f] = { "dpi_x" => resolution_dpi,
-                         "dpi_y" => resolution_dpi }
-  f2 = f.sub(/\Aout/, 'fullsize').sub(/\.pnm\z/, '.png')
-  angle = (n-start) % 2 == 0 ? "ccw" : "cw"
-  index_hash["i"] ||= {}
-  index_hash["i"][f2] = ["convert", "png",
-                          ["flip", angle,
-                            ["resolution", resolution_dpi,
-                              ["make", f]]]]
-  index_hash["list"] ||= []
-  index_hash["list"] << f2
+  scan_params["pages:#{f}:dpi"] = resolution_dpi
+  scan_params["pages:#{f}:rotate"] = (n-start) % 2 == 0 ? 90 : 270
 }
 
 tmp_scan_json_path = scan_json_path + '.part'
 File.open(tmp_scan_json_path, 'w') {|f|
-  f.puts JSON.pretty_generate(index_hash)
+  f.puts JSON.pretty_generate(scan_params)
 }
 File.rename tmp_scan_json_path, scan_json_path
