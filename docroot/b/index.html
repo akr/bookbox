@@ -37,21 +37,25 @@
     </form>
     <a href="javascript:flip_lr()">&lt;-&gt;</a>
     <table id="pages">
-      % stems.each_slice(10) {|ss|
+      % num_cells = 10
+      % stems.each_slice(num_cells) {|ss|
       <tr>
+        % ss << nil while ss.length < num_cells
         % ss.each {|stem|
         <td>
-          % name = "img#{stem}"
-          % color_mode = default_color_mode
-          % out_fn = "out#{stem}.pnm"
-          % color_mode = default_color_mode
-          % color_mode = param[out_fn]["colormode"] if param[out_fn] && param[out_fn]["colormode"]
-          % thumbnail = "/i/#{u(dir_num.to_s)}/#{u("small#{stem}_#{color_mode}.png")}"
-          % code = "change_thumbnail('#{stem}')"
-          % fullsize = "/i/#{u(dir_num.to_s)}/#{u("fullsize#{stem}_#{color_mode}.png")}"
-          % fullsize_id = "fullsize#{stem}"
+          % if stem
+          %   name = "img#{stem}"
+          %   color_mode = default_color_mode
+          %   out_fn = "out#{stem}.pnm"
+          %   color_mode = default_color_mode
+          %   color_mode = param[out_fn]["colormode"] if param[out_fn] && param[out_fn]["colormode"]
+          %   thumbnail = "/i/#{u(dir_num.to_s)}/#{u("small#{stem}_#{color_mode}.png")}"
+          %   code = "change_thumbnail('#{stem}')"
+          %   fullsize = "/i/#{u(dir_num.to_s)}/#{u("fullsize#{stem}_#{color_mode}.png")}"
+          %   fullsize_id = "fullsize#{stem}"
           <img name="<%= h(name) %>" src="<%= h(thumbnail) %>" onclick="<%= h(code) %>">
           <a id="<%= h(fullsize_id) %>" href="<%= h(fullsize) %>">fullsize</a>
+          % end
         </td>
         % }
       </tr>
