@@ -32,7 +32,7 @@ class Dep
     end
   end
 
-  def internal_memo_guard
+  def internal_memo_transaction
     begin
       old_tr = Thread.current[:dep_internal_memo_transaction]
       Thread.current[:dep_internal_memo_transaction] = new_tr = {}
@@ -46,6 +46,16 @@ class Dep
     ensure
       Thread.current[:dep_internal_memo_transaction] = old_tr
     end
+  end
+
+  def internal_memo_guard
+    internal_memo_transaction {
+      res = yield
+      if !res
+        Thread.current[:dep_internal_memo_transaction].clear
+      end
+      res
+    }
   end
 
   def external_memo(log_filename, mesg_filename=log_filename, &block)
