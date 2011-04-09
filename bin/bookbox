@@ -45,9 +45,27 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
     @dirs = dirs
   end
 
-  def erb_filter(req, res, content)
+  def erb_filter(erb_filename, req, res, content, params)
     content = content.gsub(/^[ \t]*%/, '%')
-    ERB.new(content, nil, '%').result(binding)
+    erb = ERB.new(content, nil, '%')
+    erb.filename = erb_filename
+    erb.result(binding)
+  end
+
+  def get_params(dir)
+    if File.file?("#{dir}/params.json")
+      params = File.open("#{dir}/params.json") {|f| JSON.load(f) }
+    else
+      params = {}
+    end
+    scan_params = @im.read_json("#{dir}/scan.json")
+    params = scan_params.merge(params)
+    stems = @im.image_stem_list(dir)
+    params["ViewerPreferencesDirection"] ||= "L2R"
+    stems.each {|stem|
+      params["pages:out#{stem}.pnm:colormode"] ||= "c"
+    }
+    params
   end
 
   def do_GET(req, res)
@@ -60,12 +78,15 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
       return err(req, res, "path contains #{seg.inspect}") if seg == '.' || seg == '..'
       filename << '/' << seg
     }
-    filename = filename.sub(%r{\A/(\d+)(/|\z)}) {
+    params = nil
+    if %r{\A/(\d+)(/|\z)} =~ filename
       # http://host:port/nnn/index.html => docroot/b/index.html
       dir_num = $1.to_i
       return err(req, res, "unexpected directory number: #{dir_num}") if @dirs.length <= dir_num
-      "/b#{$2}"
-    }
+      dir = @dirs[dir_num]
+      params = get_params(dir)
+      filename = filename.sub(%r{\A/(\d+)(/|\z)}) { "/b#{$2}" }
+    end
     filename = @docroot + filename
     return err(req, res, "file not found: #{filename}") unless File.file? filename
     content = File.read(filename)
@@ -74,7 +95,7 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
     when /\.js\z/ then res['content-type'] = 'text/javascript'
     when /\.css\z/ then res['content-type'] = 'text/css'
     end
-    content = erb_filter(req, res, content) if /\A%#erb/ =~ content
+    content = erb_filter(filename, req, res, content, params) if /\A%#erb/ =~ content
     res.body = content
     nil
   end
@@ -95,21 +116,38 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
   def save(dir_num, query)
     dir = @dirs[dir_num]
     stems = @im.image_stem_list(dir)
-    param = {}
+    params = {}
     query.each {|k,v|
       case k
-      when /\Acolormode(\d+)\z/
-        stem = stems[$1.to_i]
+      when 'ViewerPreferencesDirection'
+        next if !%w[L2R R2L].include?(v)
+        params[k] = v
+      when /\Apages:out(-*[0-9]+)\.pnm:(dpi|rotate|colormode)\z/
+        stem_maybe = $1
+        attr_key = $2
+        stem = stems[stem_maybe[/\d+/].to_i]
         next if !stem
-        next if !%w[c g m].include?(v)
-        out_fn = "out#{stem}.pnm"
-        param[out_fn] ||= {}
-        param[out_fn]['colormode'] = v
+        case attr_key
+        when 'dpi'
+          next if /\d+/ !~ v
+          v = v.to_i
+        when 'rotate'
+          next if /0|90|180|270/ !~ v
+          v = v.to_i
+        when 'colormode'
+          next if !%w[c g m].include?(v)
+        end
+        name = "pages:out#{stem}\.pnm:#{attr_key}"
+        params[name] = v
       end
     }
-    partfile("#{dir}/param.json") {|fn|
+    scan_params = @im.read_json("#{dir}/scan.json")
+    scan_params.each {|k,v|
+      params.delete(k) if params[k] == v
+    }
+    partfile("#{dir}/params.json") {|fn|
       File.open(fn, "w") {|f|
-        f.puts JSON.pretty_generate(param)
+        f.puts JSON.pretty_generate(params)
       }
     }
   end

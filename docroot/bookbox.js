@@ -19,7 +19,7 @@ function set_image_color_mode(stem, mode) {
   var o;
   o = document["img"+stem];
   o.src = o.src.replace(/_[cgm]\.png$/, '_' + mode + '.png');
-  document.getElementById("colormode"+stem).value = mode;
+  document.getElementById("pages:out"+stem+".pnm:colormode").value = mode;
   o = document.getElementById("fullsize"+stem);
   o.href = o.href.replace(/_[cgm]\.png$/, '_' + mode + '.png');
 }
@@ -34,4 +34,9 @@ function flip_lr() {
       row.insertBefore(cells.item(j), null)
     }
   }
+  var input = document.getElementById("ViewerPreferencesDirection");
+  if (input.value == "L2R")
+    input.value = "R2L";
+  else
+    input.value = "L2R";
 }

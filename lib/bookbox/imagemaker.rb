@@ -18,8 +18,8 @@ class BookBox::ImageMaker < ::Dep
     unless file_stat(out_fn)
       raise ArgumentError, "no source image: #{out_fn}"
     end
-    scan_params = read_json("#{dir}scan.json")
-    scan_params[File.basename(out_fn)] || {}
+    scan_params = hashtree_nested(read_json("#{dir}scan.json"))
+    scan_params["pages"][File.basename(out_fn)] || {}
   }
 
   primitive(:image_stem_list) {|dir|

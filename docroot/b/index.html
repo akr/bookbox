@@ -2,11 +2,6 @@
 % dir_num = %r{\A/(\d+)(?:\z|/)}.match(req.path)[1].to_i
 % dir = @dirs[dir_num]
 % stems = @im.image_stem_list(dir)
-% if File.file?("#{dir}/param.json")
-%   param = File.open("#{dir}/param.json") {|f| JSON.load(f) }
-% else
-%   param = {}
-% end
 % default_color_mode = 'c'
 <html>
   <head>
@@ -27,12 +22,9 @@
     % action = "/#{u(dir_num.to_s)}/submit"
     <form action="<%= h(action) %>" method="post">
       <input type="submit" value="save">
-      % stems.each {|stem|
-      %   name = "colormode#{stem}"
-      %   out_fn = "out#{stem}.pnm"
-      %   color_mode = default_color_mode
-      %   color_mode = param[out_fn]["colormode"] if param[out_fn] && param[out_fn]["colormode"]
-      <input id="<%= h(name) %>" type="hidden" name="<%= h(name) %>" value="<%= h(color_mode) %>">
+      % params.keys.sort.each {|name|
+      %   val = params[name]
+      <input id="<%= h(name) %>" type="hidden" name="<%= h(name) %>" value="<%= h(val) %>">
       % }
     </form>
     <a href="javascript:flip_lr()">&lt;-&gt;</a>
@@ -40,15 +32,14 @@
       % num_cells = 10
       % stems.each_slice(num_cells) {|ss|
       <tr>
-        % ss << nil while ss.length < num_cells
+        % ss.concat Array.new(num_cells - ss.length)
+        % ss.reverse! if params.fetch("ViewerPreferencesDirection", "L2R") == "R2L"
         % ss.each {|stem|
         <td>
           % if stem
           %   name = "img#{stem}"
-          %   color_mode = default_color_mode
           %   out_fn = "out#{stem}.pnm"
-          %   color_mode = default_color_mode
-          %   color_mode = param[out_fn]["colormode"] if param[out_fn] && param[out_fn]["colormode"]
+          %   color_mode = params["pages:#{out_fn}:colormode"] || default_color_mode
           %   thumbnail = "/i/#{u(dir_num.to_s)}/#{u("small#{stem}_#{color_mode}.png")}"
           %   code = "change_thumbnail('#{stem}')"
           %   fullsize = "/i/#{u(dir_num.to_s)}/#{u("fullsize#{stem}_#{color_mode}.png")}"

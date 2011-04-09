@@ -267,6 +267,7 @@ class Dep
   end
 
   primitive(:read_json) {|filename|
+    file_stat(filename)
     File.open(filename) {|f| JSON.load(f) }
   }
 
