@@ -60,7 +60,7 @@ class BookBox::ImageMaker < ::Dep
   }
 
   rule(%r{#{PDIR}small#{PSTEM}_m\.pnm\z}, '\k<dir>small\k<stem>_g.pnm') {|match, smf, (sgf, att)|
-    run_pipeline sgf, smf, %w[pgmtopbm -threshold -value 0.8]
+    run_pipeline sgf, smf, %w[pgmtopbm -threshold -value 0.7]
     att
   }
 
