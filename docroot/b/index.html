@@ -41,11 +41,18 @@
           %   name = "img#{stem}"
           %   out_fn = "out#{stem}.pnm"
           %   color_mode = params["pages:#{out_fn}:colormode"] || default_color_mode
-          %   thumbnail = "/i/#{u(dir_num.to_s)}/#{u("small#{stem}_#{color_mode}.png")}"
+          %   suffix = "#{stem}_#{color_mode == 'n' ? 'c' : color_mode}.png"
+          %   thumbnail = "/i/#{u(dir_num.to_s)}/#{u("small#{suffix}")}"
           %   code = "change_thumbnail('#{stem}')"
-          %   fullsize = "/i/#{u(dir_num.to_s)}/#{u("fullsize#{stem}_#{color_mode}.png")}"
+          %   fullsize = "/i/#{u(dir_num.to_s)}/#{u("fullsize#{suffix}")}"
           %   fullsize_id = "fullsize#{stem}"
+          %   if color_mode == 'n'
+          %     code2 = "javascript:set_image_color_mode('#{stem}', 'c')"
+          <a href="<%= h(code2) %>">show</a>
+          <img name="<%= h(name) %>" src="<%= h(thumbnail) %>" onclick="<%= h(code) %>" style="display: none;">
+          %   else
           <img name="<%= h(name) %>" src="<%= h(thumbnail) %>" onclick="<%= h(code) %>">
+          %   end
           <a id="<%= h(fullsize_id) %>" href="<%= h(fullsize) %>">fullsize</a>
           % end
         </td>

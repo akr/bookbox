@@ -44,6 +44,7 @@ Dir.mktmpdir('images2pdf') {|d|
         h2 = h["pages"]
         h2.keys.sort_by {|f| strnumsortkey(f) }.each {|out_fn|
           colormode = h2[out_fn]["colormode"] || 'c'
+          next if colormode == 'n'
           fullsize_fn = out_fn.sub(/\Aout(-*[0-9]+)\.pnm\z/,
                                    ".bookbox/fullsize\\1_#{colormode}.pnm")
           fn = "#{dir}/#{fullsize_fn}"

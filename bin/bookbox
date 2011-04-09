@@ -135,7 +135,7 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
           next if /0|90|180|270/ !~ v
           v = v.to_i
         when 'colormode'
-          next if !%w[c g m].include?(v)
+          next if !%w[c g m n].include?(v)
         end
         name = "pages:out#{stem}\.pnm:#{attr_key}"
         params[name] = v
