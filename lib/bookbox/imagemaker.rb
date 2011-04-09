@@ -27,16 +27,16 @@ class BookBox::ImageMaker < ::Dep
     result.sort_by {|stem| strnumsortkey(stem) }
   }
 
-  rule(%r{\A#{DIR}fullsize#{STEM}\.png\z}, '\k<dir>out\k<stem>.pnm') {|match, ff, (of, of_attr)|
-    angle = of_attr["rotate"] || 0
-    dpi = of_attr["dpi"] || 72
+  rule(%r{\A#{DIR}fullsize#{STEM}\.png\z}, '\k<dir>out\k<stem>.pnm') {|match, fullsize_fn, (out_fn, out_attr)|
+    angle = out_attr["rotate"] || 0
+    dpi = out_attr["dpi"] || 72
     dpm = (dpi / 25.4 * 1000).round
-    run_pipeline of, ff, make_flip_command(angle), %W[pnmtopng -phys #{dpm} #{dpm} 1]
+    run_pipeline out_fn, fullsize_fn, make_flip_command(angle), %W[pnmtopng -phys #{dpm} #{dpm} 1]
   }
 
-  rule(%r{\A#{DIR}small#{STEM}_c\.pnm\z}, '\k<dir>out\k<stem>.pnm') {|match, scf, (of, of_attr)|
-    angle = of_attr["rotate"] || 0
-    run_pipeline of, scf, make_flip_command(angle), ["pnmscale", "-width=80"]
+  rule(%r{\A#{DIR}small#{STEM}_c\.pnm\z}, '\k<dir>out\k<stem>.pnm') {|match, scf, (out_fn, out_attr)|
+    angle = out_attr["rotate"] || 0
+    run_pipeline out_fn, scf, make_flip_command(angle), ["pnmscale", "-width=80"]
   }
 
   rule(%r{\A#{DIR}small#{STEM}_g\.pnm\z}, '\k<dir>small\k<stem>_c.pnm') {|match, sgf, (scf, _)|
