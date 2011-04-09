@@ -1,7 +1,7 @@
 require 'pp'
 require 'open3'
 require 'json'
-
+require 'thread'
 
 class Dep
   def self.start
@@ -11,90 +11,117 @@ class Dep
   def initialize
     @verbose = defined?($opt_verbose) ? $opt_verbose : false
     @internal_memo = {}
-    @history = []
   end
 
   attr_accessor :verbose
 
   def internal_memo(obj, meth, *args)
     key = [obj, meth, args]
-    imemo = @internal_memo
-    if imemo.include? key
-      imemo[key]
+    tr = Thread.current[:dep_internal_memo_transaction]
+    if tr && tr.include?(key)
+      tr[key]
+    elsif @internal_memo.include? key
+      @internal_memo[key]
     else
-      imemo[key] = obj.send(meth, *args)
+      v = obj.send(meth, *args)
+      if tr
+        tr[key] = v
+      else
+        @internal_memo[key] = v
+      end
     end
   end
 
   def internal_memo_guard
-    old_imemo = @internal_memo.dup
-    res = yield
-    if !res
-      @internal_memo = old_imemo
+    begin
+      old_tr = Thread.current[:dep_internal_memo_transaction]
+      Thread.current[:dep_internal_memo_transaction] = new_tr = {}
+      res = yield
+      if old_tr
+        old_tr.update new_tr
+      else
+        @internal_memo.update new_tr
+      end
+      res
+    ensure
+      Thread.current[:dep_internal_memo_transaction] = old_tr
     end
-    res
   end
 
-  def external_memo(filename, mesg_filename=filename, &block)
+  def external_memo(log_filename, mesg_filename=log_filename, &block)
     begin
-      old_history = @history
-      @history = []
-      external_memo2(filename, mesg_filename, &block)
+      old_history = Thread.current[:dep_external_memo_history]
+      Thread.current[:dep_external_memo_history] = []
+      external_memo2(log_filename, mesg_filename, &block)
     ensure
-      @history = old_history
+      Thread.current[:dep_external_memo_history] = old_history
     end
   end
 
   def external_memo2(log_filename, mesg_filename)
     STDERR.puts "try: #{mesg_filename}" if @verbose
-    if ((if File.exist?(log_filename)
-           true
-         else
-           reason = "no build log"
-           false
-         end) &&
-        (log = File.open(log_filename) {|f| Marshal.load(f) }) &&
-        log["history"].all? {|type, meth, args, res, mesg|
-          if type == :gen
-            res2 = self.send(meth, *args)
-            success = res2 == res
-          else
-            res2 = nil
-            success = internal_memo_guard {
+    File.open(log_filename, File::RDWR|File::CREAT, 0644) {|log_io|
+      log_io.flock(File::LOCK_EX)
+      if ((if 0 < log_io.stat.size
+             true
+           else
+             reason = "no build log"
+             false
+           end) &&
+          (log = Marshal.load(log_io)) &&
+          log["history"].all? {|type, meth, args, res, mesg|
+            if type == :gen
               res2 = self.send(meth, *args)
-              res2 == res
-            }
-          end
-          if success
-            true
-          else
-            reason = mesg || "#{meth}(#{args.map {|a| a.inspect }.join(', ')})"
-            reason += "\nold value: #{res.inspect}\nnew value: #{res2.inspect}"
-            false
-          end
-        })
-      STDERR.puts "skip: #{mesg_filename}" if @verbose
-      log["result"]
-    else
-      STDERR.puts reason.gsub(/^/) { "build start: #{mesg_filename} because " } if @verbose
-      #STDERR.puts "build start: #{mesg_filename} because #{reason}" if @verbose
-      @history = []
-      result = yield
-      history = @history
-      h = {
-        "history" => history,
-        "result" => result
-      }
-      File.open(log_filename, "w") {|f| Marshal.dump(h, f) }
-      STDERR.puts "build done: #{mesg_filename}" if @verbose
-      result
-    end
+              success = res2 == res
+            else
+              res2 = nil
+              success = internal_memo_guard {
+                res2 = self.send(meth, *args)
+                res2 == res
+              }
+            end
+            if success
+              true
+            else
+              reason = mesg || "#{meth}(#{args.map {|a| a.inspect }.join(', ')})"
+              reason += "\nold value: #{res.inspect}\nnew value: #{res2.inspect}"
+              false
+            end
+          })
+        STDERR.puts "skip: #{mesg_filename}" if @verbose
+        log["result"]
+      else
+        STDERR.puts reason.gsub(/^/) { "build start: #{mesg_filename} because " } if @verbose
+        #STDERR.puts "build start: #{mesg_filename} because #{reason}" if @verbose
+        begin
+          old_history = Thread.current[:dep_external_memo_history]
+          Thread.current[:dep_external_memo_history] = []
+          result = yield
+          history = Thread.current[:dep_external_memo_history]
+          h = {
+            "history" => history,
+            "result" => result
+          }
+          log_io.rewind
+          log_io.write Marshal.dump(h)
+          log_io.flush
+          log_io.truncate(log_io.pos)
+        ensure
+          Thread.current[:dep_external_memo_history] = old_history
+        end
+        STDERR.puts "build done: #{mesg_filename}" if @verbose
+        result
+      end
+    }
   end
 
   def external_memo_log(type, meth, args, mesg=nil)
     mesg ||= "#{meth}(#{args.map {|a| a.inspect }.join(', ')})"
     res = self.send(meth, *args)
-    @history << [type, meth, args, res, mesg]
+    history = Thread.current[:dep_external_memo_history]
+    if history
+      history << [type, meth, args, res, mesg]
+    end
     res
   end
 
@@ -105,11 +132,11 @@ class Dep
 
   def primitive_wrapper1(pname, *args)
     begin
-      old_history = @history
-      @history = nil
+      old_history = Thread.current[:dep_external_memo_history]
+      Thread.current[:dep_external_memo_history] = nil
       internal_memo(self, "#{pname}_body", *args)
     ensure
-      @history = old_history
+      Thread.current[:dep_external_memo_history] = old_history
     end
   end
 
