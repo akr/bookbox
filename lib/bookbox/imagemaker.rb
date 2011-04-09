@@ -45,7 +45,7 @@ class BookBox::ImageMaker < ::Dep
   }
 
   rule(%r{#{DIR}small#{STEM}_m\.pnm\z}, '\k<dir>small\k<stem>_g.pnm') {|match, smf, (sgf, _)|
-    run_pipeline sgf, smf, ["pgmtopbm"]
+    run_pipeline sgf, smf, %w[pgmtopbm -threshold -value 0.8]
   }
 
   rule(%r{#{DIR}(?<basename>[^/]+)\.png\z}, '\k<dir>\k<basename>.pnm') {|match, png, (pnm, _)|
