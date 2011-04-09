@@ -70,7 +70,7 @@ class Dep
            end) &&
           (log = Marshal.load(log_io)) &&
           log["history"].all? {|type, meth, args, res, mesg|
-            if type == :gen
+            if type == :update
               res2 = self.send(meth, *args)
               success = res2 == res
             else
@@ -143,7 +143,7 @@ class Dep
   def self.primitive(pname, &block)
     pname = pname.to_s
     define_method("#{pname}_body", &block)
-    eval "def #{pname}(*args) primitive_wrapper(:gen, #{pname.dump}, *args) end"
+    eval "def #{pname}(*args) primitive_wrapper(:update, #{pname.dump}, *args) end"
   end
 
   def self.check_primitive(pname, &block)
@@ -176,7 +176,7 @@ class Dep
   end
 
   def make(filename)
-    external_memo_log(:gen, :make1, [filename], "make(#{filename.inspect})")
+    external_memo_log(:update, :make1, [filename], "make(#{filename.inspect})")
   end
 
   def make1(filename)
