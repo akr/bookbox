@@ -18,8 +18,7 @@ class BookBox::ImageMaker < ::Dep
     scan_params[out_fn] || {}
   }
 
-  primitive(:image_stem_list) {
-    dir = '.'
+  primitive(:image_stem_list) {|dir|
     result = []
     Dir.entries(dir).each {|f|
       next if f !~ %r{\A#{DIR}out#{STEM}\.pnm\z}mo
@@ -54,10 +53,10 @@ class BookBox::ImageMaker < ::Dep
 
   ambiguous(%r{\A#{DIR}fullsize#{STEM}\.png\z}, %r{\A#{DIR}(?<basename>[^/]+)\.png\z})
 
-  phony(:all_fullsize_images) { image_stem_list.each {|stem| make("fullsize#{stem}.png") } }
-  phony(:all_color_thumbnails) { image_stem_list.each {|stem| make("small#{stem}_c.png") } }
-  phony(:all_gray_thumbnails) { image_stem_list.each {|stem| make("small#{stem}_g.png") } }
-  phony(:all_mono_thumbnails) { image_stem_list.each {|stem| make("small#{stem}_m.png") } }
+  phony(:all_fullsize_images) { image_stem_list(".").each {|stem| make("fullsize#{stem}.png") } }
+  phony(:all_color_thumbnails) { image_stem_list(".").each {|stem| make("small#{stem}_c.png") } }
+  phony(:all_gray_thumbnails) { image_stem_list(".").each {|stem| make("small#{stem}_g.png") } }
+  phony(:all_mono_thumbnails) { image_stem_list(".").each {|stem| make("small#{stem}_m.png") } }
   phony(:all_thumbnails) { all_color_thumbnails; all_gray_thumbnails; all_mono_thumbnails }
   phony(:all_images) { all_thumbnails; all_fullsize_images }
 
