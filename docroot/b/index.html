@@ -1,0 +1,14 @@
+%#erb
+<html>
+  <head>
+    <title>BookBox</title>
+  </head>
+  <body>
+    % dir_num = %r{\A/(\d+)(?:\z|/)}.match(req.path)[1].to_i
+    % dir = @dirs[dir_num]
+    % @im.image_stem_list(dir).each {|stem|
+    %   f = "small#{stem}_c.png"
+    <img src="/i/<%= h(u(dir_num.to_s)) %>/<%= h(u(f)) %>">
+    % }
+  </body>
+</html>
