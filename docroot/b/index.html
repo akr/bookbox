@@ -19,6 +19,7 @@
     <a href="javascript:thumbnail_all_color(stems, 'c')">color all</a>
     <a href="javascript:thumbnail_all_color(stems, 'g')">gray all</a>
     <a href="javascript:thumbnail_all_color(stems, 'm')">mono all</a>
+    <%= stems.length %> images
     % action = "/#{u(dir_num.to_s)}/submit"
     <form action="<%= h(action) %>" method="post">
       <input type="submit" value="save">
