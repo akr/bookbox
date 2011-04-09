@@ -26,6 +26,8 @@ if !$opt_o && STDOUT.tty?
 end
 out = $opt_o || '-'
 
+$opt_viewerprefiernces_direction = nil
+
 Dir.mktmpdir('images2pdf') {|d|
   fs = []
   Find.find(*ARGV) {|path|
@@ -44,9 +46,14 @@ Dir.mktmpdir('images2pdf') {|d|
           colormode = h2[out_fn]["colormode"] || 'c'
           fullsize_fn = out_fn.sub(/\Aout(-*[0-9]+)\.pnm\z/,
                                    ".bookbox/fullsize\\1_#{colormode}.pnm")
-          im.make(fullsize_fn)
-          fs << fullsize_fn
+          fn = "#{dir}/#{fullsize_fn}"
+          im.make(fn)
+          fs << fn
         }
+        if params["ViewerPreferencesDirection"] &&
+           $opt_viewerprefiernces_direction == nil
+          $opt_viewerprefiernces_direction = params["ViewerPreferencesDirection"]
+        end
         Find.prune
       end
     end
@@ -94,4 +101,16 @@ Dir.mktmpdir('images2pdf') {|d|
   commandline.concat pdfs
   commandline << "cat" << "output" << out
   system(*commandline)
+  if $opt_viewerprefiernces_direction == 'R2L'
+    tmp_pdf = "#{d}/r2l.pdf"
+    open(tmp_pdf, 'w') {|f|
+      File.foreach(out) {|line|
+        if line == "/Type /Catalog\n"
+          f.print "/ViewerPreferences<</Direction /R2L>>\n"
+        end
+        f.print line
+      }
+    }
+    system('pdftk', tmp_pdf, 'output', out)
+  end
 }
