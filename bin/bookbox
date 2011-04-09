@@ -1,23 +1,23 @@
 #!/usr/bin/env ruby
 
 require_relative '../lib/bookbox'
-require_relative '../lib/bookbox/imageset'
 
 require 'optparse'
 require 'webrick'
 require 'erb'
 
-$opt_image_dir = '.'
+#$opt_image_dir = '.'
 $opt_docroot = File.dirname(File.dirname(File.realpath(__FILE__))) + "/docroot"
-p $opt_docroot
+$opt_verbose = false
 
 include ERB::Util
 
-
 def op_server
   op = OptionParser.new
+  op.banner = 'Usage: bookbox server directory...'
   op.def_option('-h', '--help', 'show help message') { puts op; exit 0 }
-  op.def_option('-d DIR', '--image-dir DIR', 'image directory (default: ".")') {|arg| $opt_image_dir = arg }
+  op.def_option('--verbose', 'verbose mode') { $opt_verbose = true }
+  #op.def_option('-d DIR', '--image-dir DIR', 'image directory (default: ".")') {|arg| $opt_image_dir = arg }
   op
 end
 
@@ -27,32 +27,67 @@ module ServletUtil
     res.body = "<title>#{h mesg}</title>#{h mesg}"
     nil
   end
+
+  def redirect(res, uri)
+    res['content-type'] = 'text/html'
+    res.set_redirect(WEBrick::HTTPStatus::MovedPermanently, uri)
+    nil
+  end
 end
 
 class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
   include ServletUtil
 
-  def initialize(server, docroot, is)
+  def initialize(server, docroot, im, dirs)
     @config = server.config
     @docroot = docroot
-    @is = is
+    @im = im
+    @dirs = dirs
   end
 
-  def erb_filter(req, res, content)
+  def erb_filter(erb_filename, req, res, content, params)
     content = content.gsub(/^[ \t]*%/, '%')
-    ERB.new(content, nil, '%').result(binding)
+    erb = ERB.new(content, nil, '%')
+    erb.filename = erb_filename
+    erb.result(binding)
+  end
+
+  def get_params(dir)
+    if File.file?("#{dir}/params.json")
+      params = File.open("#{dir}/params.json") {|f| JSON.load(f) }
+    else
+      params = {}
+    end
+    scan_params = @im.read_json("#{dir}/scan.json")
+    params = scan_params.merge(params)
+    stems = @im.image_stem_list(dir)
+    params["ViewerPreferencesDirection"] ||= "L2R"
+    stems.each {|stem|
+      params["pages:out#{stem}.pnm:colormode"] ||= "c"
+    }
+    params
   end
 
   def do_GET(req, res)
     #p [:TopDirHandler, req.path]
-    filename = @docroot.dup
+    filename = ''
     path = req.path
-    path = '/index.html' if path == '/'
+    path += 'index.html' if %r{/\z} =~ path
     path.scan(%r{/([^/]*)}) {
       seg = $1
       return err(req, res, "path contains #{seg.inspect}") if seg == '.' || seg == '..'
       filename << '/' << seg
     }
+    params = nil
+    if %r{\A/(\d+)(/|\z)} =~ filename
+      # http://host:port/nnn/index.html => docroot/b/index.html
+      dir_num = $1.to_i
+      return err(req, res, "unexpected directory number: #{dir_num}") if @dirs.length <= dir_num
+      dir = @dirs[dir_num]
+      params = get_params(dir)
+      filename = filename.sub(%r{\A/(\d+)(/|\z)}) { "/b#{$2}" }
+    end
+    filename = @docroot + filename
     return err(req, res, "file not found: #{filename}") unless File.file? filename
     content = File.read(filename)
     case filename
@@ -60,46 +95,109 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
     when /\.js\z/ then res['content-type'] = 'text/javascript'
     when /\.css\z/ then res['content-type'] = 'text/css'
     end
-    content = erb_filter(req, res, content) if /\A%#erb/ =~ content
+    content = erb_filter(filename, req, res, content, params) if /\A%#erb/ =~ content
     res.body = content
     nil
+  end
+
+  def do_POST(req, res)
+    case req.path
+    when %r{\A/(\d+)/submit\z}
+      dir_num = $1.to_i
+      return err(req, res, "unexpected directory number: #{dir_num}") if @dirs.length <= dir_num
+      save(dir_num, req.query)
+      redirect(res, "/#{$1}/")
+    else
+      err(req, res, "unexpected uri: #{req.request_uri}")
+    end
+    nil
+  end
+
+  def save(dir_num, query)
+    dir = @dirs[dir_num]
+    stems = @im.image_stem_list(dir)
+    params = {}
+    query.each {|k,v|
+      case k
+      when 'ViewerPreferencesDirection'
+        next if !%w[L2R R2L].include?(v)
+        params[k] = v
+      when /\Apages:out(-*[0-9]+)\.pnm:(dpi|rotate|colormode)\z/
+        stem_maybe = $1
+        attr_key = $2
+        stem = stems[stem_maybe[/\d+/].to_i]
+        next if !stem
+        case attr_key
+        when 'dpi'
+          next if /\d+/ !~ v
+          v = v.to_i
+        when 'rotate'
+          next if /0|90|180|270/ !~ v
+          v = v.to_i
+        when 'colormode'
+          next if !%w[c g m].include?(v)
+        end
+        name = "pages:out#{stem}\.pnm:#{attr_key}"
+        params[name] = v
+      end
+    }
+    scan_params = @im.read_json("#{dir}/scan.json")
+    scan_params.each {|k,v|
+      params.delete(k) if params[k] == v
+    }
+    partfile("#{dir}/params.json") {|fn|
+      File.open(fn, "w") {|f|
+        f.puts JSON.pretty_generate(params)
+      }
+    }
   end
 end
 
 class ImageDirHandler < WEBrick::HTTPServlet::AbstractServlet
   include ServletUtil
 
-  def initialize(server, is)
-    @is = is
+  def initialize(server, im, dirs)
+    @im = im
     @server = server
     @config = server.config
-    @image_dir = @is.image_dir
+    @dirs = dirs
   end
 
   def do_GET(req, res)
     #p [:ImageDirHandler, req.path]
-    if req.path == '/i'
-      res['content-type'] = 'text/html'
-      res.set_redirect(WEBrick::HTTPStatus::MovedPermanently, '/i/')
-      return
-    end
-    if req.path == '/i/'
-      res.filename = @image_dir
+    case req.path
+    when '/i'
+      redirect(res, "/i/")
+    when '/i/'
+      redirect(res, "/i/0/")
+    when %r{\A/i/(\d+)\z}
+      redirect(res, "/i/#{$1}/")
+    when %r{\A/i/(\d+)/\z}
+      dir = @dirs[dir_num = $1.to_i]
+      return err(req, res, "unexpected directory number: #{dir_num}") if !dir
+      res.filename = dir
       WEBrick::HTTPServlet::FileHandler.get_instance(@server, res.filename, :FancyIndexing => true).service(req, res)
-      return
+    when %r{\A/i/(\d+)/([^/]+)\z}
+      dir_num = $1.to_i
+      basename = $2
+      dir = @dirs[dir_num]
+      return err(req, res, "unexpected directory number: #{dir_num}") if !dir
+      res.filename = "#{dir}/.bookbox/#{basename}"
+      @im.make(res.filename)
+      WEBrick::HTTPServlet::DefaultFileHandler.get_instance(@config, res.filename).service(req, res)
+    else
+      err(req, res, "unexpected uri: #{req.request_uri}")
     end
-    return err(req, res, "unexpected uri: #{req.request_uri}") if %r{\A/i/[^/]+\z} !~ req.path
-    basename = req.path.sub(%r{\A.*/}m, '')
-    filename = @is.make(basename)
-    res.filename = filename
-    WEBrick::HTTPServlet::DefaultFileHandler.get_instance(@config, filename).service(req, res)
     nil
   end
+
 end
 
 def main_server(argv)
-  op_server.parse(argv)
-  is = ImageSet.new($opt_image_dir)
+  op_server.parse!(argv)
+  dirs = argv.map {|dir| File.realpath(dir) }
+  im = BookBox::ImageMaker.new
+  im.verbose = true if $opt_verbose
   webrick_config = {
     :DocumentRoot => '/home/username/public_html/',
     :BindAddress => '127.0.0.1',
@@ -110,9 +208,9 @@ def main_server(argv)
   trap("INT"){ srv.shutdown }
   trap("TERM"){ srv.shutdown }
   trap("QUIT"){ srv.shutdown }
-  srv.mount('', TopDirHandler, $opt_docroot, is)
+  srv.mount('', TopDirHandler, $opt_docroot, im, dirs)
   #srv.mount('/t', WEBrick::HTTPServlet::FileHandler, File.expand_path($opt_image_dir), :FancyIndexing => true)
-  srv.mount('/i/', ImageDirHandler, is)
+  srv.mount('/i/', ImageDirHandler, im, dirs)
   srv.start
 end
 

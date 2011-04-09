@@ -1,0 +1,56 @@
+%#erb
+% dir_num = %r{\A/(\d+)(?:\z|/)}.match(req.path)[1].to_i
+% dir = @dirs[dir_num]
+% stems = @im.image_stem_list(dir)
+% default_color_mode = 'c'
+<html>
+  <head>
+    <title>BookBox</title>
+    <script src="/bookbox.js" type="text/javascript"></script>
+    <script>
+      var stems = [
+        % stems.each {|stem|
+          "<%= stem %>",
+        % }
+      ];
+    </script>
+  </head>
+  <body>
+    <a href="javascript:thumbnail_all_color(stems, 'c')">color all</a>
+    <a href="javascript:thumbnail_all_color(stems, 'g')">gray all</a>
+    <a href="javascript:thumbnail_all_color(stems, 'm')">mono all</a>
+    % action = "/#{u(dir_num.to_s)}/submit"
+    <form action="<%= h(action) %>" method="post">
+      <input type="submit" value="save">
+      % params.keys.sort.each {|name|
+      %   val = params[name]
+      <input id="<%= h(name) %>" type="hidden" name="<%= h(name) %>" value="<%= h(val) %>">
+      % }
+    </form>
+    <a href="javascript:flip_lr()">&lt;-&gt;</a>
+    <table id="pages">
+      % num_cells = 10
+      % stems.each_slice(num_cells) {|ss|
+      <tr>
+        % ss.concat Array.new(num_cells - ss.length)
+        % ss.reverse! if params.fetch("ViewerPreferencesDirection", "L2R") == "R2L"
+        % ss.each {|stem|
+        <td>
+          % if stem
+          %   name = "img#{stem}"
+          %   out_fn = "out#{stem}.pnm"
+          %   color_mode = params["pages:#{out_fn}:colormode"] || default_color_mode
+          %   thumbnail = "/i/#{u(dir_num.to_s)}/#{u("small#{stem}_#{color_mode}.png")}"
+          %   code = "change_thumbnail('#{stem}')"
+          %   fullsize = "/i/#{u(dir_num.to_s)}/#{u("fullsize#{stem}_#{color_mode}.png")}"
+          %   fullsize_id = "fullsize#{stem}"
+          <img name="<%= h(name) %>" src="<%= h(thumbnail) %>" onclick="<%= h(code) %>">
+          <a id="<%= h(fullsize_id) %>" href="<%= h(fullsize) %>">fullsize</a>
+          % end
+        </td>
+        % }
+      </tr>
+      % }
+    </table>
+  </body>
+</html>
