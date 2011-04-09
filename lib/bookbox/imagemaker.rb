@@ -1,5 +1,3 @@
-require 'dep'
-
 module BookBox
 end
 

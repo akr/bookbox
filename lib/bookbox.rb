@@ -1,5 +1,6 @@
 module BookBox
 end
 
-require 'bookbox/util'
-require 'bookbox/imagemaker'
+require_relative 'dep'
+require_relative 'bookbox/util'
+require_relative 'bookbox/imagemaker'

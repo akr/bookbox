@@ -19,7 +19,7 @@ op = OptionParser.new
 op.def_option('-o OUTPUTFILE', '--output OUTPUTFILE', 'output PDF file') {|arg| $opt_o = arg }
 op.def_option('--verbose', 'verbose mode') { $opt_verbose = true }
 
-op.parse(ARGV)
+op.parse!(ARGV)
 
 if !$opt_o && STDOUT.tty?
   err "output to terminal"
@@ -29,6 +29,27 @@ out = $opt_o || '-'
 Dir.mktmpdir('images2pdf') {|d|
   fs = []
   Find.find(*ARGV) {|path|
+    if File.directory?(path)
+      if File.file?("#{path}/scan.json") ||
+         File.file?("#{path}/params.json")
+        im = BookBox::ImageMaker.new
+        im.verbose = true
+        dir = File.realpath(path)
+        params = {}
+        params.update im.read_json("#{dir}/scan.json") if File.file?("#{dir}/scan.json")
+        params.update im.read_json("#{dir}/params.json") if File.file?("#{dir}/params.json")
+        h = hashtree_nested(params)
+        h2 = h["pages"]
+        h2.keys.sort_by {|f| strnumsortkey(f) }.each {|out_fn|
+          colormode = h2[out_fn]["colormode"] || 'c'
+          fullsize_fn = out_fn.sub(/\Aout(-*[0-9]+)\.pnm\z/,
+                                   ".bookbox/fullsize\\1_#{colormode}.pnm")
+          im.make(fullsize_fn)
+          fs << fullsize_fn
+        }
+        Find.prune
+      end
+    end
     next unless File.file? path
     fs << path
   }
