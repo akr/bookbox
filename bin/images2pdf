@@ -106,7 +106,8 @@ Dir.mktmpdir('images2pdf') {|d|
     open(tmp_pdf, 'w') {|f|
       File.foreach(out) {|line|
         if line == "/Type /Catalog\n"
-          f.print "/ViewerPreferences<</Direction /R2L>>\n"
+          f.print "/PageLayout/TwoPageRight\n"
+          f.print "/ViewerPreferences<</Direction/R2L>>\n"
         end
         f.print line
       }
