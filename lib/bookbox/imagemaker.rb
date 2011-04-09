@@ -5,9 +5,12 @@ end
 
 class BookBox::ImageMaker < ::Dep
 
-  source /\Ascan\.json\z/
+  DIR = %r{(?<dir>(?:[^/]+/)*)}
+  STEM = /(?<stem>[-0-9]+)/
 
-  rule(/\Aout.*pnm\z/) {|match, out_fn|
+  source %r{\Ascan\.json\z}
+
+  rule(%r{\Aout#{STEM}pnm\z}) {|match, out_fn|
     unless file_stat(out_fn)
       raise ArgumentError, "no source image: #{out_fn}"
     end
@@ -16,39 +19,40 @@ class BookBox::ImageMaker < ::Dep
   }
 
   primitive(:image_stem_list) {
+    dir = '.'
     result = []
-    Dir.entries(".").each {|f|
-      next if f !~ %r{\Aout(.*)\.pnm\z}m
-      result << $1
+    Dir.entries(dir).each {|f|
+      next if f !~ %r{\A#{DIR}out#{STEM}\.pnm\z}mo
+      result << $~["stem"]
     }
     result.sort_by {|stem| strnumsortkey(stem) }
   }
 
-  rule(/\Afullsize(.*)\.png\z/, 'out\1.pnm') {|match, ff, (of, of_attr)|
+  rule(%r{\A#{DIR}fullsize#{STEM}\.png\z}, '\k<dir>out\k<stem>.pnm') {|match, ff, (of, of_attr)|
     angle = of_attr["rotate"] || 0
     dpi = of_attr["dpi"] || 72
     dpm = (dpi / 25.4 * 1000).round
     run_pipeline of, ff, make_flip_command(angle), %W[pnmtopng -phys #{dpm} #{dpm} 1]
   }
 
-  rule(/\Asmall(.*)_c\.pnm\z/, 'out\1.pnm') {|match, scf, (of, of_attr)|
+  rule(%r{\A#{DIR}small#{STEM}_c\.pnm\z}, '\k<dir>out\k<stem>.pnm') {|match, scf, (of, of_attr)|
     angle = of_attr["rotate"] || 0
     run_pipeline of, scf, make_flip_command(angle), ["pnmscale", "-width=80"]
   }
 
-  rule(/\Asmall(.*)_g\.pnm\z/, 'small\1_c.pnm') {|match, sgf, (scf, _)|
+  rule(%r{\A#{DIR}small#{STEM}_g\.pnm\z}, '\k<dir>small\k<stem>_c.pnm') {|match, sgf, (scf, _)|
     run_pipeline scf, sgf, ["ppmtopgm"]
   }
 
-  rule(/\Asmall(.*)_m\.pnm\z/, 'small\1_g.pnm') {|match, smf, (sgf, _)|
+  rule(%r{\A#{DIR}small#{STEM}_m\.pnm\z}, '\k<dir>small\k<stem>_g.pnm') {|match, smf, (sgf, _)|
     run_pipeline sgf, smf, ["pgmtopbm"]
   }
 
-  rule(/\A(.*)\.png\z/, '\1.pnm') {|match, png, (pnm, _)|
+  rule(%r{\A#{DIR}(?<basename>[^/]+)\.png\z}, '\k<dir>\k<basename>.pnm') {|match, png, (pnm, _)|
     run_pipeline pnm, png, ["pnmtopng"]
   }
 
-  ambiguous(/\Afullsize(.*)\.png\z/, /\A(.*)\.png\z/)
+  ambiguous(%r{\A#{DIR}fullsize#{STEM}\.png\z}, %r{\A#{DIR}(?<basename>[^/]+)\.png\z})
 
   phony(:all_fullsize_images) { image_stem_list.each {|stem| make("fullsize#{stem}.png") } }
   phony(:all_color_thumbnails) { image_stem_list.each {|stem| make("small#{stem}_c.png") } }
