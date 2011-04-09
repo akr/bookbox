@@ -144,7 +144,7 @@ class ImageDirHandler < WEBrick::HTTPServlet::AbstractServlet
       basename = $2
       dir = @dirs[dir_num]
       return err(req, res, "unexpected directory number: #{dir_num}") if !dir
-      res.filename = "#{dir}/#{basename}"
+      res.filename = "#{dir}/.bookbox/#{basename}"
       @im.make(res.filename)
       WEBrick::HTTPServlet::DefaultFileHandler.get_instance(@config, res.filename).service(req, res)
     else

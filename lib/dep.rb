@@ -2,6 +2,7 @@ require 'pp'
 require 'open3'
 require 'json'
 require 'thread'
+require 'fileutils'
 
 class Dep
   def self.start
@@ -70,6 +71,8 @@ class Dep
 
   def external_memo2(log_filename, mesg_filename)
     STDERR.puts "try: #{mesg_filename}" if @verbose
+    log_dir = File.dirname(log_filename)
+    FileUtils.mkdir_p(log_dir) if !File.directory?(log_dir)
     File.open(log_filename, File::RDWR|File::CREAT, 0644) {|log_io|
       log_io.flock(File::LOCK_EX)
       if ((if 0 < log_io.stat.size

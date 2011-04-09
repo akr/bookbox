@@ -47,7 +47,7 @@
           % color_mode = param[out_fn]["colormode"] if param[out_fn] && param[out_fn]["colormode"]
           % thumbnail = "/i/#{u(dir_num.to_s)}/#{u("small#{stem}_#{color_mode}.png")}"
           % code = "change_thumbnail('#{stem}')"
-          % fullsize = "/i/#{u(dir_num.to_s)}/#{u("fullsize#{stem}_c.png")}"
+          % fullsize = "/i/#{u(dir_num.to_s)}/#{u("fullsize#{stem}_#{color_mode}.png")}"
           % fullsize_id = "fullsize#{stem}"
           <img name="<%= h(name) %>" src="<%= h(thumbnail) %>" onclick="<%= h(code) %>">
           <a id="<%= h(fullsize_id) %>" href="<%= h(fullsize) %>">fullsize</a>

@@ -5,6 +5,7 @@ end
 
 class BookBox::ImageMaker < ::Dep
 
+  BDIR = %r{\A(?<dir>/?(?:[^/]+/)*)\.bookbox/}
   PDIR = %r{\A(?<dir>/?(?:[^/]+/)*)}
   PSTEM = /(?<stem>-*[0-9]+)/
   PCOLORMODE = /(?<colormode>[cgm])/
@@ -30,7 +31,7 @@ class BookBox::ImageMaker < ::Dep
     result.sort_by {|stem| strnumsortkey(stem) }
   }
 
-  rule(%r{#{PDIR}fullsize#{PSTEM}_c\.pnm\z}, '\k<dir>out\k<stem>.pnm') {|match, fullsize_fn, (out_fn, out_att)|
+  rule(%r{#{BDIR}fullsize#{PSTEM}_c\.pnm\z}, '\k<dir>out\k<stem>.pnm') {|match, fullsize_fn, (out_fn, out_att)|
     angle = out_att["rotate"] || 0
     run_pipeline out_fn, fullsize_fn, make_flip_command(angle)
     out_att = out_att.dup
@@ -45,7 +46,7 @@ class BookBox::ImageMaker < ::Dep
     run_pipeline pnm_fn, png_fn, %W[pnmtopng -phys #{dpm} #{dpm} 1]
   }
 
-  rule(%r{#{PDIR}small#{PSTEM}_c\.pnm\z}, '\k<dir>out\k<stem>.pnm') {|match, scf, (out_fn, out_att)|
+  rule(%r{#{BDIR}small#{PSTEM}_c\.pnm\z}, '\k<dir>out\k<stem>.pnm') {|match, scf, (out_fn, out_att)|
     angle = out_att["rotate"] || 0
     run_pipeline out_fn, scf, make_flip_command(angle), ["pnmscale", "-width=80"]
     out_att = out_att.dup
@@ -84,7 +85,7 @@ class BookBox::ImageMaker < ::Dep
     %w[small fullsize].each {|base|
       image_stem_list(".").each {|stem|
         %w[c g m].each {|colormode|
-          make(File.realdirpath("#{base}#{stem}_#{colormode}.png"))
+          make(File.realdirpath(Dir.pwd)+"/.bookbox/#{base}#{stem}_#{colormode}.png")
         }
       }
     }
