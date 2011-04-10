@@ -1,0 +1,89 @@
+#!/usr/bin/env ruby
+
+require 'narray'
+require 'json'
+
+class PNM
+  WSP = /(?:[ \t\r\n]|\#[^\r\n]*[\r\n])+/
+
+  def self.read(fn)
+    content = File.open(fn, 'rb') {|f| f.read }
+    if /\A(P[635241])#{WSP}(\d+)#{WSP}(\d+)#{WSP}(\d+)[ \t\r\n]/o !~ content
+      raise ArgumentError, "unsupported format"
+    end
+    magic = $1
+    raise ArgumentError, "unsupported format" if magic != "P6"
+    w = $2.to_i
+    h = $3.to_i
+    max = $4.to_i
+    raise ArgumentError, "unsupported max value: #{max}" if 256 <= max
+    na = NArray.to_na($', "byte", 3, w, h)
+    self.new(magic, w, h, max, na)
+  end
+
+  def initialize(magic, width, height, max, na)
+    @magic = magic
+    @width = width
+    @height = height
+    @max = max
+    @na = na
+  end
+
+  def stat
+    h = {
+      'width' => @width,
+      'height' => @height,
+      'maxval' => @max,
+    }
+    %w[red green blue].each_with_index {|color, i|
+      a = @na[i,true,true].reshape(@width*@height)
+      h["#{color}_min_val"] = a.min
+      h["#{color}_max_val"] = a.max
+      h["#{color}_mean_val"] = a.mean
+      h["#{color}_stddev_val"] = a.stddev
+      h["#{color}_min"] = h["#{color}_min_val"] / @max.to_f
+      h["#{color}_max"] = h["#{color}_max_val"] / @max.to_f
+      h["#{color}_mean"] = h["#{color}_mean_val"] / @max.to_f
+      h["#{color}_stddev"] = h["#{color}_stddev_val"] / @max.to_f
+    }
+
+    # convert RGB to HSV (without H)
+    r = @na[0,true,true].reshape(@width*@height)
+    g = @na[1,true,true].reshape(@width*@height)
+    b = @na[2,true,true].reshape(@width*@height)
+    flags = r < g
+    min_rg = flags * r + (1-flags) * g
+    max_rg = flags * g + (1-flags) * r
+    flags = min_rg < b
+    min_rgb = flags * min_rg + (1-flags) * b
+    flags = max_rg < b
+    max_rgb = flags * b + (1-flags) * max_rg
+    den = max_rgb + max_rgb.eq(0)
+    v = max_rgb
+    s = (max_rgb - min_rgb).to_f / max_rgb
+
+    h["value_min_val"] = v.min
+    h["value_max_val"] = v.max
+    h["value_mean_val"] = v.mean
+    h["value_stddev_val"] = v.stddev
+    h["value_min"] = h["value_min_val"] / @max.to_f
+    h["value_max"] = h["value_max_val"] / @max.to_f
+    h["value_mean"] = h["value_mean_val"] / @max.to_f
+    h["value_stddev"] = h["value_stddev_val"] / @max.to_f
+
+    h["saturation_min"] = s.min
+    h["saturation_max"] = s.max
+    h["saturation_mean"] = s.mean
+    h["saturation_stddev"] = s.stddev
+
+    h
+  end
+end
+
+stats = {}
+ARGV.each {|fn|
+  image = PNM.read(fn)
+  stats[fn] = image.stat
+}
+
+puts JSON.pretty_generate(stats)
