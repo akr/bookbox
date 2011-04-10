@@ -20,9 +20,10 @@
     <a href="javascript:check_all(stems, 'checked')">all</a>
     <a href="javascript:check_seq(stems)">seq</a>
     <a href="javascript:check_all(stems, false)">none</a>
-    <a href="javascript:thumbnail_all_color(stems, 'c')">color</a>
-    <a href="javascript:thumbnail_all_color(stems, 'g')">gray</a>
-    <a href="javascript:thumbnail_all_color(stems, 'm')">mono</a>
+    <a href="javascript:checked_set_image_color_mode(stems, 'c')">color</a>
+    <a href="javascript:checked_set_image_color_mode(stems, 'g')">gray</a>
+    <a href="javascript:checked_set_image_color_mode(stems, 'm')">mono</a>
+    <a href="javascript:checked_set_image_color_mode(stems, 'n')">off</a>
     <a href="javascript:flip_lr()">L2R&lt;-&gt;R2L</a>
     <%= stems.length %> images
     % action = "/#{u(dir_num.to_s)}/submit"

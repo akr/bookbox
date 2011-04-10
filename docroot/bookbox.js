@@ -23,7 +23,7 @@ function check_seq(stems) {
   }
 }
 
-function thumbnail_all_color(stems, mode) {
+function checked_set_image_color_mode(stems, mode) {
   checked = [];
   for (var i = 0; i < stems.length; i++) {
     if (document.getElementById("checkbox"+stems[i]).checked)
