@@ -60,7 +60,7 @@ class PNM
     max_rgb = flags * b + (1-flags) * max_rg
     den = max_rgb + max_rgb.eq(0)
     v = max_rgb
-    s = (max_rgb - min_rgb).to_f / max_rgb
+    s = (max_rgb - min_rgb).to_f / den
 
     h["value_min_val"] = v.min
     h["value_max_val"] = v.max
