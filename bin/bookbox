@@ -116,6 +116,8 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
   def save(dir_num, query)
     dir = @dirs[dir_num]
     stems = @im.image_stem_list(dir)
+    stem_hash = {}
+    stems.each {|stem| stem_hash[stem] = stem }
     params = {}
     query.each {|k,v|
       case k
@@ -125,8 +127,8 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
       when /\Apages:out(-*[0-9]+)\.pnm:(dpi|rotate|colormode)\z/
         stem_maybe = $1
         attr_key = $2
-        stem = stems[stem_maybe[/\d+/].to_i]
-        next if !stem
+        next if !stem_hash[stem_maybe]
+        stem = stem_maybe
         case attr_key
         when 'dpi'
           next if /\d+/ !~ v

@@ -1,4 +1,40 @@
-function change_thumbnail(stem) {
+function check_all(stems, checked_value) {
+  for (var i = 0; i < stems.length; i++) {
+    var input = document.getElementById("checkbox"+stems[i]);
+    input.checked = checked_value;
+  }
+}
+
+function check_seq(stems) {
+  var min = undefined, max = undefined;
+  for (var i = 0; i < stems.length; i++) {
+    var input = document.getElementById("checkbox"+stems[i]);
+    if (input.checked) {
+      if (min == undefined)
+        min = i;
+      max = i;
+    }
+  }
+  if (min != undefined) {
+    for (var i = min; i <= max; i++) {
+      var input = document.getElementById("checkbox"+stems[i]);
+      input.checked = 'checked';
+    }
+  }
+}
+
+function thumbnail_all_color(stems, mode) {
+  checked = [];
+  for (var i = 0; i < stems.length; i++) {
+    if (document.getElementById("checkbox"+stems[i]).checked)
+      checked.push(i);
+  }
+  for (var i = 0; i < checked.length; i++) {
+    set_image_color_mode(stems[checked[i]], mode);
+  }
+}
+
+function cycle_color_mode(stem) {
   var mode = document.getElementById("pages:out"+stem+".pnm:colormode").value;
   if (mode == 'c')
     set_image_color_mode(stem, 'g');
@@ -8,12 +44,6 @@ function change_thumbnail(stem) {
     set_image_color_mode(stem, 'n');
   else if (mode == 'n')
     set_image_color_mode(stem, 'c');
-}
-
-function thumbnail_all_color(stems, mode) {
-  for (var i in stems) {
-    set_image_color_mode(stems[i], mode);
-  }
 }
 
 function set_image_color_mode(stem, mode) {

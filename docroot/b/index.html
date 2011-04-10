@@ -17,9 +17,12 @@
   </head>
   <body>
     <a href="/">top</a>
-    <a href="javascript:thumbnail_all_color(stems, 'c')">color all</a>
-    <a href="javascript:thumbnail_all_color(stems, 'g')">gray all</a>
-    <a href="javascript:thumbnail_all_color(stems, 'm')">mono all</a>
+    <a href="javascript:check_all(stems, 'checked')">all</a>
+    <a href="javascript:check_seq(stems)">seq</a>
+    <a href="javascript:check_all(stems, false)">none</a>
+    <a href="javascript:thumbnail_all_color(stems, 'c')">color</a>
+    <a href="javascript:thumbnail_all_color(stems, 'g')">gray</a>
+    <a href="javascript:thumbnail_all_color(stems, 'm')">mono</a>
     <a href="javascript:flip_lr()">L2R&lt;-&gt;R2L</a>
     <%= stems.length %> images
     % action = "/#{u(dir_num.to_s)}/submit"
@@ -29,40 +32,42 @@
       %   val = params[name]
       <input id="<%= h(name) %>" type="hidden" name="<%= h(name) %>" value="<%= h(val) %>">
       % }
-    </form>
-    <table id="pages">
-      % num_cells = 10
-      % stems.each_slice(num_cells) {|ss|
-      <tr>
-        % ss.concat Array.new(num_cells - ss.length)
-        % ss.reverse! if params.fetch("ViewerPreferencesDirection", "L2R") == "R2L"
-        % ss.each {|stem|
-        <td>
-          % if stem
-          %   name = "img#{stem}"
-          %   out_fn = "out#{stem}.pnm"
-          %   color_mode = params["pages:#{out_fn}:colormode"] || default_color_mode
-          %   suffix = "#{stem}_#{color_mode == 'n' ? 'c' : color_mode}.png"
-          %   thumbnail = "/i/#{u(dir_num.to_s)}/#{u("small#{suffix}")}"
-          %   code = "change_thumbnail('#{stem}')"
-          %   fullsize = "/i/#{u(dir_num.to_s)}/#{u("fullsize#{suffix}")}"
-          %   fullsize_id = "fullsize#{stem}"
-          %   show_id = "show#{stem}"
-          %   if color_mode == 'n'
-          %     show_style = ''
-          %     img_style = 'display: none;'
-          %   else
-          %     show_style = 'display: none;'
-          %     img_style = ''
-          %   end
-          <a id="<%= show_id %>" href="javascript:<%= h(code) %>" style="<%= h(show_style) %>">show</a>
-          <img name="<%= h(name) %>" src="<%= h(thumbnail) %>" onclick="<%= h(code) %>" style="<%= h(img_style) %>">
-          <a id="<%= h(fullsize_id) %>" href="<%= h(fullsize) %>">fullsize</a>
-          % end
-        </td>
+      <table id="pages" border="1" rules="all">
+        % num_cells = 10
+        % stems.each_slice(num_cells) {|ss|
+        <tr>
+          % ss.concat Array.new(num_cells - ss.length)
+          % ss.reverse! if params["ViewerPreferencesDirection"] == "R2L"
+          % ss.each {|stem|
+          <td style="vertical-align: text-top;">
+            % if stem
+            %   name = "img#{stem}"
+            %   out_fn = "out#{stem}.pnm"
+            %   color_mode = params["pages:#{out_fn}:colormode"] || default_color_mode
+            %   suffix = "#{stem}_#{color_mode == 'n' ? 'c' : color_mode}.png"
+            %   thumbnail = "/i/#{u(dir_num.to_s)}/#{u("small#{suffix}")}"
+            %   code = "cycle_color_mode('#{stem}')"
+            %   fullsize = "/i/#{u(dir_num.to_s)}/#{u("fullsize#{suffix}")}"
+            %   fullsize_id = "fullsize#{stem}"
+            %   show_id = "show#{stem}"
+            %   checkbox_id = "checkbox#{stem}"
+            %   if color_mode == 'n'
+            %     show_style = ''
+            %     img_style = 'display: none;'
+            %   else
+            %     show_style = 'display: none;'
+            %     img_style = ''
+            %   end
+            <a id="<%= h(fullsize_id) %>" href="<%= h(fullsize) %>">full</a>
+            <input id="<%= checkbox_id %>" type="checkbox" name="<%= h(checkbox_id) %>">
+            <a id="<%= show_id %>" href="javascript:<%= h(code) %>" style="<%= h(show_style) %>">show</a>
+            <img name="<%= h(name) %>" src="<%= h(thumbnail) %>" onclick="<%= h(code) %>" style="<%= h(img_style) %>">
+            % end
+          </td>
+          % }
+        </tr>
         % }
-      </tr>
-      % }
-    </table>
+      </table>
+    </form>
   </body>
 </html>
