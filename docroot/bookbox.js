@@ -107,7 +107,7 @@ function test_ajax() {
 }
 */
 
-function image_sort(stems, uri, sortkey, set_stems) {
+function image_sort(stems, uri, sign, sortkey, set_stems) {
   var stats;
   var http_request = new XMLHttpRequest();
   http_request.open( "GET", '/i/0/stat.js', true );
@@ -115,7 +115,7 @@ function image_sort(stems, uri, sortkey, set_stems) {
       if ( http_request.readyState == 4 ) {
           if ( http_request.status == 200 ) {
               stats = eval( "(" + http_request.responseText + ")" );
-              image_sort_sub(stems, stats, sortkey, set_stems);
+              image_sort_sub(stems, stats, sign, sortkey, set_stems);
           } else {
               alert( "There was a problem with the URL." );
           }
@@ -125,11 +125,11 @@ function image_sort(stems, uri, sortkey, set_stems) {
   http_request.send(null);
 }
 
-function image_sort_sub(stems, stats, sortkey, set_stems) {
+function image_sort_sub(stems, stats, sign, sortkey, set_stems) {
   var ary = stems.slice();
   ary.sort(function (stem1, stem2) {
-      return stats["small"+stem1+"_c.pnm"][sortkey] -
-             stats["small"+stem2+"_c.pnm"][sortkey];
+      return sign * (stats["small"+stem1+"_c.pnm"][sortkey] -
+                     stats["small"+stem2+"_c.pnm"][sortkey]);
   });
   update_stems(ary, set_stems);
 }

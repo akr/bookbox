@@ -18,28 +18,29 @@
     </script>
   </head>
   <body>
-    <a href="/">top</a>
-    <a href="javascript:check_all(stems, 'checked')">all</a>
-    <a href="javascript:check_seq(stems)">seq</a>
-    <a href="javascript:check_all(stems, false)">none</a>
-    <a href="javascript:checked_set_image_color_mode(stems, 'c')">color</a>
-    <a href="javascript:checked_set_image_color_mode(stems, 'g')">gray</a>
-    <a href="javascript:checked_set_image_color_mode(stems, 'm')">mono</a>
-    <a href="javascript:checked_set_image_color_mode(stems, 'n')">off</a>
-    <a href="javascript:flip_lr()">L2R&lt;-&gt;R2L</a>
-    <%= stems.length %> images
-    <br>
-
-    sort by:
-    <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', 'page', set_stems)") %>">scanned</a>
-    <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', 'value_mean', set_stems)") %>">val_mean</a>
-    <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', 'value_stddev', set_stems)") %>">val_stddev</a>
-    <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', 'saturation_mean', set_stems)") %>">sat_mean</a>
-    <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', 'saturation_stddev', set_stems)") %>">sat_stddev</a>
 
     % action = "/#{u(dir_num.to_s)}/submit"
     <form action="<%= h(action) %>" method="post">
+
+      <a href="/">top</a>
+      <a href="javascript:check_all(stems, 'checked')">all</a>
+      <a href="javascript:check_seq(stems)">seq</a>
+      <a href="javascript:check_all(stems, false)">none</a>
+      <a href="javascript:checked_set_image_color_mode(stems, 'c')">color</a>
+      <a href="javascript:checked_set_image_color_mode(stems, 'g')">gray</a>
+      <a href="javascript:checked_set_image_color_mode(stems, 'm')">mono</a>
+      <a href="javascript:checked_set_image_color_mode(stems, 'n')">off</a>
+      <a href="javascript:flip_lr()">L2R&lt;-&gt;R2L</a>
+      <%= stems.length %> images
+      <br>
+      sort by:
+      <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', 1, 'page', set_stems)") %>">scanned</a>
+      <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', 1, 'value_mean', set_stems)") %>">val_mean</a>
+      <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', -1, 'value_stddev', set_stems)") %>">val_stddev</a>
+      <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', -1, 'saturation_mean', set_stems)") %>">sat_mean</a>
+      <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', -1, 'saturation_stddev', set_stems)") %>">sat_stddev</a>
       <input type="submit" value="save">
+
       % params.keys.sort.each {|name|
       %   val = params[name]
       <input id="<%= h(name) %>" type="hidden" name="<%= h(name) %>" value="<%= h(val) %>">
@@ -76,6 +77,25 @@
         </tr>
         % }
       </table>
+
+      <a href="/">top</a>
+      <a href="javascript:check_all(stems, 'checked')">all</a>
+      <a href="javascript:check_seq(stems)">seq</a>
+      <a href="javascript:check_all(stems, false)">none</a>
+      <a href="javascript:checked_set_image_color_mode(stems, 'c')">color</a>
+      <a href="javascript:checked_set_image_color_mode(stems, 'g')">gray</a>
+      <a href="javascript:checked_set_image_color_mode(stems, 'm')">mono</a>
+      <a href="javascript:checked_set_image_color_mode(stems, 'n')">off</a>
+      <a href="javascript:flip_lr()">L2R&lt;-&gt;R2L</a>
+      <%= stems.length %> images
+      <br>
+      sort by:
+      <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', 1, 'page', set_stems)") %>">scanned</a>
+      <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', 1, 'value_mean', set_stems)") %>">val_mean</a>
+      <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', -1, 'value_stddev', set_stems)") %>">val_stddev</a>
+      <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', -1, 'saturation_mean', set_stems)") %>">sat_mean</a>
+      <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', -1, 'saturation_stddev', set_stems)") %>">sat_stddev</a>
+      <input type="submit" value="save">
     </form>
   </body>
 </html>

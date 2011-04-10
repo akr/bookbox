@@ -86,7 +86,8 @@ class BookBox::ImageMaker < ::Dep
       file_stat(fn)
       fs << fn
     }
-    json = IO.popen(["pnmstat", *fs]) {|f| f.read }
+    pnmstat_path = File.dirname(File.dirname(File.dirname(__FILE__)))+'/bin/pnmstat'
+    json = IO.popen([pnmstat_path, *fs]) {|f| f.read }
     h = JSON.load(json)
     h2 = {}
     h.each {|k,v|
