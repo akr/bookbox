@@ -62,8 +62,9 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
     params = scan_params.merge(params)
     stems = @im.image_stem_list(dir)
     params["ViewerPreferencesDirection"] ||= "L2R"
-    stems.each {|stem|
+    stems.each_with_index {|stem, i|
       params["pages:out#{stem}.pnm:colormode"] ||= "c"
+      params["pages:out#{stem}.pnm:page"] = i.to_s
     }
     params
   end
@@ -124,7 +125,7 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
       when 'ViewerPreferencesDirection'
         next if !%w[L2R R2L].include?(v)
         params[k] = v
-      when /\Apages:out(-*[0-9]+)\.pnm:(dpi|rotate|colormode)\z/
+      when /\Apages:out(-*[0-9]+)\.pnm:(dpi|rotate|colormode|page)\z/
         stem_maybe = $1
         attr_key = $2
         next if !stem_hash[stem_maybe]

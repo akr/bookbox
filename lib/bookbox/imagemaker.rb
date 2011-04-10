@@ -74,6 +74,33 @@ class BookBox::ImageMaker < ::Dep
 
   ambiguous(%r{#{PDIR}fullsize#{PSTEM}_#{PCOLORMODE}\.png\z}, %r{#{PDIR}(?<basename>[^/]+)\.png\z})
 
+  rule(%r{#{BDIR}stat.js\z}) {|match, js_fn|
+    dir = match[:dir]
+    stems = image_stem_list(dir)
+    fs = []
+    pages = {}
+    stems.each_with_index {|stem, page|
+      fn = "#{dir}/.bookbox/small#{stem}_c.pnm"
+      pages[fn] = page
+      make(fn)
+      file_stat(fn)
+      fs << fn
+    }
+    json = IO.popen(["pnmstat", *fs]) {|f| f.read }
+    h = JSON.load(json)
+    h2 = {}
+    h.each {|k,v|
+      v['page'] = pages[k]
+      h2[File.basename(k)] = v
+    }
+    partfile(js_fn) {|tmp_fn|
+      File.open(tmp_fn, 'w') {|f|
+        f.puts JSON.pretty_generate(h2)
+      }
+    }
+    file_stat(js_fn)
+  }
+
   phony(:all_fullsize_images) { image_stem_list(".").each {|stem| make("fullsize#{stem}_c.png") } }
   phony(:all_color_thumbnails) { image_stem_list(".").each {|stem| make("small#{stem}_c.png") } }
   phony(:all_gray_thumbnails) { image_stem_list(".").each {|stem| make("small#{stem}_g.png") } }

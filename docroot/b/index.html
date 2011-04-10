@@ -8,11 +8,13 @@
     <title>BookBox</title>
     <script src="/bookbox.js" type="text/javascript"></script>
     <script>
-      var stems = [
+      var original_stems = [
         % stems.each {|stem|
           "<%= stem %>",
         % }
       ];
+      var stems = original_stems;
+      function set_stems(new_stems) { stems = new_stems; }
     </script>
   </head>
   <body>
@@ -26,6 +28,15 @@
     <a href="javascript:checked_set_image_color_mode(stems, 'n')">off</a>
     <a href="javascript:flip_lr()">L2R&lt;-&gt;R2L</a>
     <%= stems.length %> images
+    <br>
+
+    sort by:
+    <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', 'page', set_stems)") %>">scanned</a>
+    <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', 'value_mean', set_stems)") %>">val_mean</a>
+    <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', 'value_stddev', set_stems)") %>">val_stddev</a>
+    <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', 'saturation_mean', set_stems)") %>">sat_mean</a>
+    <a href="javascript:<%= h("image_sort(stems, '/i/#{dir_num}/stat.js', 'saturation_stddev', set_stems)") %>">sat_stddev</a>
+
     % action = "/#{u(dir_num.to_s)}/submit"
     <form action="<%= h(action) %>" method="post">
       <input type="submit" value="save">
@@ -35,34 +46,30 @@
       % }
       <table id="pages" border="1" rules="all">
         % num_cells = 10
-        % stems.each_slice(num_cells) {|ss|
+        % stems_with_pages = stems.map.with_index {|stem, page| [stem, page] }
+        % stems_with_pages.each_slice(num_cells) {|ss|
         <tr>
           % ss.concat Array.new(num_cells - ss.length)
           % ss.reverse! if params["ViewerPreferencesDirection"] == "R2L"
-          % ss.each {|stem|
+          % ss.each {|stem, page|
           <td style="vertical-align: text-top;">
             % if stem
-            %   name = "img#{stem}"
             %   out_fn = "out#{stem}.pnm"
             %   color_mode = params["pages:#{out_fn}:colormode"] || default_color_mode
+            %   full_id = "full#{page}"
+            %   checkbox_id = "checkbox#{page}"
+            %   show_id = "show#{page}"
+            %   img_id = "img#{page}"
             %   suffix = "#{stem}_#{color_mode == 'n' ? 'c' : color_mode}.png"
-            %   thumbnail = "/i/#{u(dir_num.to_s)}/#{u("small#{suffix}")}"
-            %   code = "cycle_color_mode('#{stem}')"
-            %   fullsize = "/i/#{u(dir_num.to_s)}/#{u("fullsize#{suffix}")}"
-            %   fullsize_id = "fullsize#{stem}"
-            %   show_id = "show#{stem}"
-            %   checkbox_id = "checkbox#{stem}"
-            %   if color_mode == 'n'
-            %     show_style = ''
-            %     img_style = 'display: none;'
-            %   else
-            %     show_style = 'display: none;'
-            %     img_style = ''
-            %   end
-            <a id="<%= h(fullsize_id) %>" href="<%= h(fullsize) %>">full</a>
-            <input id="<%= checkbox_id %>" type="checkbox" name="<%= h(checkbox_id) %>">
-            <a id="<%= show_id %>" href="javascript:<%= h(code) %>" style="<%= h(show_style) %>">show</a>
-            <img name="<%= h(name) %>" src="<%= h(thumbnail) %>" onclick="<%= h(code) %>" style="<%= h(img_style) %>">
+            %   full_href = "/i/#{u(dir_num.to_s)}/#{u("fullsize#{suffix}")}"
+            %   checkbox_name = "checkbox#{stem}"
+            %   show_code = img_code = "cycle_color_mode(stems, #{page})"
+            %   img_src = "/i/#{u(dir_num.to_s)}/#{u("small#{suffix}")}"
+            %   show_style, img_style = color_mode == 'n' ? ['', 'display: none;'] : ['display: none;', '']
+            <a id="<%= h(full_id) %>" href="<%= h(full_href) %>">full</a>
+            <input id="<%= checkbox_id %>" type="checkbox" name="<%= h(checkbox_name) %>">
+            <a id="<%= show_id %>" href="javascript:<%= h(show_code) %>" style="<%= h(show_style) %>">show</a>
+            <img id="<%= h(img_id) %>" src="<%= h(img_src) %>" onclick="<%= h(img_code) %>" style="<%= h(img_style) %>">
             % end
           </td>
           % }
