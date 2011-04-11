@@ -32,6 +32,9 @@ else
   start = nums.max + 1
 end
 
+max_width = 215.872
+width = 160
+top_left_x = (max_width-width)/2
 resolution_dpi = 300 # dot per inch
 system(
   "scanimage",
@@ -40,7 +43,7 @@ system(
   "--source", "ADF Duplex",
   "--mode", "Color",
   "--resolution", resolution_dpi.to_s,
-  "-l", "27.5",
+  "-l", top_left_x.to_s,
   "-x", "160",
   "--ald=yes")
 
