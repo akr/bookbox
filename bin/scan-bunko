@@ -14,8 +14,10 @@ require 'open3'
 
 op = OptionParser.new
 $opt_d = '.'
+$opt_s = nil
 op.def_option('-h', '--help', 'show help message') { puts op; exit 0 }
 op.def_option('-d DIR', '--destination-directory DIR', 'destination directory') {|arg| $opt_d = arg }
+op.def_option('-s START', '--start-page START', 'start page number') {|arg| $opt_s = arg }
 op.parse(ARGV)
 
 outdir = $opt_d
@@ -23,13 +25,19 @@ unless File.directory? outdir
   Dir.mkdir outdir
 end
 
-nums = Dir.entries(outdir).reject {|f|
-  /\Aout([0-9]+)\.pnm\z/ !~ f
-}.map {|f| f[/\d+/].to_i }
-if nums.empty?
-  start = 0
+if $opt_s
+  start = $opt_s.to_i
+  pagenum_width = $opt_s.length
 else
-  start = nums.max + 1
+  nums = Dir.entries(outdir).reject {|f|
+    /\Aout([0-9]+)\.pnm\z/ !~ f
+  }.map {|f| f[/\d+/].to_i }
+  if nums.empty?
+    start = 0
+  else
+    start = nums.max + 1
+  end
+  pagenum_width = 4
 end
 
 max_width = 215.872
@@ -38,7 +46,7 @@ top_left_x = (max_width-width)/2
 resolution_dpi = 300 # dot per inch
 system(
   "scanimage",
-  "--batch=#{outdir}/out%04d.pnm",
+  "--batch=#{outdir}/out%0#{pagenum_width}d.pnm",
   "--batch-start=#{start}",
   "--source", "ADF Duplex",
   "--mode", "Color",
