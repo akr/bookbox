@@ -40,7 +40,7 @@ system(
   "--source", "ADF Duplex",
   "--mode", "Color",
   "--resolution", resolution_dpi.to_s,
-  "-l", "30",
+  "-l", "27.5",
   "-x", "160",
   "--ald=yes")
 
