@@ -20,6 +20,12 @@ class BookBox::ImageMaker < ::Dep
     scan_params["pages"][File.basename(out_fn)] || {}
   }
 
+  def image_stem_list_encode_args(args)
+    [path2rel(args[0])]
+  end
+  def image_stem_list_decode_args(args)
+    [path2abs(args[0])]
+  end
   primitive(:image_stem_list) {|dir|
     result = []
     Dir.entries(dir).each {|f|
