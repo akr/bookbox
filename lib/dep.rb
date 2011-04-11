@@ -13,9 +13,14 @@ class Dep
   def initialize
     @verbose = defined?($opt_verbose) ? $opt_verbose : false
     @internal_memo = {}
+    @cwd_pat = %r{\A#{Regexp.escape Dir.pwd}/}
   end
 
   attr_accessor :verbose
+
+  def vmesg(mesg)
+    STDERR.print "#{mesg}\n" if @verbose
+  end
 
   def internal_memo(obj, meth, *args)
     key = [obj, meth, args]
@@ -60,7 +65,7 @@ class Dep
     }
   end
 
-  def external_memo(log_filename, mesg_filename=log_filename, &block)
+  def external_memo(log_filename, mesg_filename, &block)
     begin
       old_history = Thread.current[:dep_external_memo_history]
       old_directory = Thread.current[:dep_external_memo_directory]
@@ -74,7 +79,7 @@ class Dep
   end
 
   def external_memo2(log_filename, mesg_filename)
-    STDERR.puts "try: #{mesg_filename}" if @verbose
+    vmesg "try: #{mesg_filename}"
     log_dir = File.dirname(log_filename)
     FileUtils.mkdir_p(log_dir) if !File.directory?(log_dir)
     File.open(log_filename, File::RDWR|File::CREAT, 0644) {|log_io|
@@ -108,11 +113,10 @@ class Dep
               false
             end
           })
-        STDERR.puts "skip: #{mesg_filename}" if @verbose
+        vmesg "skip: #{mesg_filename}"
         log["result"]
       else
-        STDERR.puts reason.gsub(/^/) { "build start: #{mesg_filename} because " } if @verbose
-        #STDERR.puts "build start: #{mesg_filename} because #{reason}" if @verbose
+        vmesg reason.gsub(/^/) { "build start: #{mesg_filename} because " }
         begin
           old_history = Thread.current[:dep_external_memo_history]
           Thread.current[:dep_external_memo_history] = []
@@ -129,7 +133,7 @@ class Dep
         ensure
           Thread.current[:dep_external_memo_history] = old_history
         end
-        STDERR.puts "build done: #{mesg_filename}" if @verbose
+        vmesg "build done: #{mesg_filename}"
         result
       end
     }
@@ -242,7 +246,7 @@ class Dep
   def make2(filename)
     d, f = File.split(filename)
     path = File.join(d, ".dep-#{f}.marshal")
-    external_memo(path, filename) { make3(filename) }
+    external_memo(path, filename.sub(@cwd_pat, '')) { make3(filename) }
   end
 
   def make3(filename)
