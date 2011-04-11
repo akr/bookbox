@@ -239,16 +239,6 @@ class Dep
     res
   end
 
-  def self.phony(target_name, *input_filenames, &block)
-    define_method(target_name) {
-      args = input_filenames.map {|filename|
-        r = make(filename)
-        [filename, r]
-      }
-      self.instance_exec(*args, &block) if block
-    }
-  end
-
   check_primitive(:file_stat) {|filename|
     begin
       st = File.stat(filename)

@@ -101,21 +101,6 @@ class BookBox::ImageMaker < ::Dep
     file_stat(js_fn)
   }
 
-  phony(:all_fullsize_images) { image_stem_list(".").each {|stem| make("fullsize#{stem}_c.png") } }
-  phony(:all_color_thumbnails) { image_stem_list(".").each {|stem| make("small#{stem}_c.png") } }
-  phony(:all_gray_thumbnails) { image_stem_list(".").each {|stem| make("small#{stem}_g.png") } }
-  phony(:all_mono_thumbnails) { image_stem_list(".").each {|stem| make("small#{stem}_m.png") } }
-  phony(:all_thumbnails) { all_color_thumbnails; all_gray_thumbnails; all_mono_thumbnails }
-  phony(:all_images) {
-    %w[small fullsize].each {|base|
-      image_stem_list(".").each {|stem|
-        %w[c g m].each {|colormode|
-          make(File.realdirpath(Dir.pwd)+"/.bookbox/#{base}#{stem}_#{colormode}.png")
-        }
-      }
-    }
-  }
-
   def make_flip_command(angle)
     case angle
     when 0 then return nil
