@@ -90,13 +90,16 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
     end
     filename = @docroot + filename
     return err(req, res, "file not found: #{filename}") unless File.file? filename
-    content = File.read(filename)
+    content = File.binread(filename)
     case filename
     when /\.html\z/ then res['content-type'] = 'text/html'
     when /\.js\z/ then res['content-type'] = 'text/javascript'
     when /\.css\z/ then res['content-type'] = 'text/css'
+    when /\.png\z/ then res['content-type'] = 'image/png'
     end
-    content = erb_filter(filename, req, res, content, params) if /\A%#erb/ =~ content
+    if %r{\Atext/} =~ res['content-type'] && /\A%#erb/ =~ content
+      content = erb_filter(filename, req, res, content, params)
+    end
     res.body = content
     nil
   end

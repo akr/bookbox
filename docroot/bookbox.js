@@ -56,10 +56,13 @@ function set_image_color_mode(stems, page, mode) {
   var full = document.getElementById("full"+page);
   var img = document.getElementById("img"+page);
   var a = document.getElementById("show"+page);
+  var ball = document.getElementById("ball"+page);
 
   var suffix = '_' + (mode == 'n' ? 'c' : mode) + '.png';
   img.src = img.src.replace(/_[cgm]\.png$/, suffix);
   full.href = full.href.replace(/_[cgm]\.png$/, suffix);
+
+  ball.src = ball.src.replace(/_[cgmn]\.png$/,  '_' + mode + '.png');
 
   if (mode == 'n') {
     a.style.display = 'inline'

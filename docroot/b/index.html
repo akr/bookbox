@@ -61,16 +61,20 @@
             %   checkbox_id = "checkbox#{page}"
             %   show_id = "show#{page}"
             %   img_id = "img#{page}"
+            %   ball_id = "ball#{page}"
             %   suffix = "#{stem}_#{color_mode == 'n' ? 'c' : color_mode}.png"
             %   full_href = "/i/#{u(dir_num.to_s)}/#{u("fullsize#{suffix}")}"
             %   checkbox_name = "checkbox#{stem}"
-            %   show_code = img_code = "cycle_color_mode(stems, #{page})"
+            %   cycle_code = "cycle_color_mode(stems, #{page})"
             %   img_src = "/i/#{u(dir_num.to_s)}/#{u("small#{suffix}")}"
             %   show_style, img_style = color_mode == 'n' ? ['', 'display: none;'] : ['display: none;', '']
+            %   ball_url = "/ball_#{color_mode == 'n' ? 'c' : color_mode}.png"
             <a id="<%= h(full_id) %>" href="<%= h(full_href) %>">full</a>
             <input id="<%= checkbox_id %>" type="checkbox" name="<%= h(checkbox_name) %>">
-            <a id="<%= show_id %>" href="javascript:<%= h(show_code) %>" style="<%= h(show_style) %>">show</a>
-            <img id="<%= h(img_id) %>" src="<%= h(img_src) %>" onclick="<%= h(img_code) %>" style="<%= h(img_style) %>">
+            <img id="<%= h(ball_id) %>" src="<%= h(ball_url) %>" onclick="<%= h(cycle_code) %>">
+            <br>
+            <a id="<%= show_id %>" href="javascript:<%= h(cycle_code) %>" style="<%= h(show_style) %>">show</a>
+            <img id="<%= h(img_id) %>" src="<%= h(img_src) %>" onclick="<%= h(cycle_code) %>" style="<%= h(img_style) %>">
             % end
           </td>
           % }
