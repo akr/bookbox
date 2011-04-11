@@ -68,7 +68,7 @@
             %   cycle_code = "cycle_color_mode(stems, #{page})"
             %   img_src = "/i/#{u(dir_num.to_s)}/#{u("small#{suffix}")}"
             %   show_style, img_style = color_mode == 'n' ? ['', 'display: none;'] : ['display: none;', '']
-            %   ball_url = "/ball_#{color_mode == 'n' ? 'c' : color_mode}.png"
+            %   ball_url = "/ball_#{color_mode}.png"
             <a id="<%= h(full_id) %>" href="<%= h(full_href) %>">full</a>
             <input id="<%= checkbox_id %>" type="checkbox" name="<%= h(checkbox_name) %>">
             <img id="<%= h(ball_id) %>" src="<%= h(ball_url) %>" onclick="<%= h(cycle_code) %>">
