@@ -3,6 +3,7 @@ require 'open3'
 require 'json'
 require 'thread'
 require 'fileutils'
+require 'pathname'
 
 class Dep
   def self.start
@@ -62,10 +63,13 @@ class Dep
   def external_memo(log_filename, mesg_filename=log_filename, &block)
     begin
       old_history = Thread.current[:dep_external_memo_history]
+      old_directory = Thread.current[:dep_external_memo_directory]
       Thread.current[:dep_external_memo_history] = []
+      Thread.current[:dep_external_memo_directory] = File.dirname(log_filename)
       external_memo2(log_filename, mesg_filename, &block)
     ensure
       Thread.current[:dep_external_memo_history] = old_history
+      Thread.current[:dep_external_memo_directory] = old_directory
     end
   end
 
@@ -82,7 +86,8 @@ class Dep
              false
            end) &&
           (log = Marshal.load(log_io)) &&
-          log["history"].all? {|type, meth, args, res, mesg|
+          log["history"].all? {|type, meth, encoded_args, res|
+            args = self.send("#{meth}_decode_args", encoded_args)
             if type == :update
               res2 = self.send(meth, *args)
               success = res2 == res
@@ -96,7 +101,9 @@ class Dep
             if success
               true
             else
-              reason = mesg || "#{meth}(#{args.map {|a| a.inspect }.join(', ')})"
+              reason = self.respond_to?("#{meth}_inspect") ?
+                       self.send("#{meth}_inspect", encoded_args) :
+                       "#{meth}(#{args.map {|a| a.inspect }.join(', ')})"
               reason += "\nold value: #{res.inspect}\nnew value: #{res2.inspect}"
               false
             end
@@ -128,21 +135,34 @@ class Dep
     }
   end
 
-  def external_memo_log(type, meth, args, mesg=nil)
-    mesg ||= "#{meth}(#{args.map {|a| a.inspect }.join(', ')})"
+  def external_memo_log(type, meth, args)
     res = self.send(meth, *args)
     history = Thread.current[:dep_external_memo_history]
     if history
-      history << [type, meth, args, res, mesg]
+      encoded_args = self.send("#{meth}_encode_args", args)
+      history << [type, meth, encoded_args, res]
     end
     res
   end
 
   def primitive_wrapper(type, pname, *args)
-    mesg = "#{pname}(#{args.map {|a| a.inspect }.join(', ')})"
-    external_memo_log(type, :primitive_wrapper1, [pname, *args], mesg)
+    external_memo_log(type, :primitive_wrapper1, [pname, *args])
   end
 
+  def primitive_wrapper1_encode_args(all_args)
+    pname, *args = all_args
+    args = self.send("#{pname}_encode_args", args)
+    [pname, *args]
+  end
+  def primitive_wrapper1_decode_args(all_args)
+    pname, *args = all_args
+    args = self.send("#{pname}_decode_args", args)
+    [pname, *args]
+  end
+  def primitive_wrapper1_inspect(encoded_args)
+    pname, *args = encoded_args
+    "#{pname}(#{args.map {|a| a.inspect }.join(', ')})"
+  end
   def primitive_wrapper1(pname, *args)
     begin
       old_history = Thread.current[:dep_external_memo_history]
@@ -189,9 +209,32 @@ class Dep
   end
 
   def make(filename)
-    external_memo_log(:update, :make1, [filename], "make(#{filename.inspect})")
+    external_memo_log(:update, :make1, [filename])
   end
 
+  def path2rel(path)
+    directory = Thread.current[:dep_external_memo_directory]
+    Pathname(path).relative_path_from(Pathname(directory)).to_s
+  end
+  def path2abs(path)
+    directory = Thread.current[:dep_external_memo_directory]
+    (Pathname(directory)+Pathname(path)).to_s
+  end
+
+  def make1_encode_args(args)
+    filename, = args
+    filename = path2rel(filename)
+    [filename]
+  end
+  def make1_decode_args(args)
+    filename, = args
+    filename = path2abs(filename)
+    [filename]
+  end
+  def make1_inspect(encoded_args)
+    filename, = args
+    "make(#{filename.inspect}"
+  end
   def make1(filename)
     internal_memo(self, :make2, filename)
   end
@@ -239,6 +282,16 @@ class Dep
     res
   end
 
+  def file_stat_encode_args(args)
+    filename, = args
+    filename = path2rel(filename)
+    [filename]
+  end
+  def file_stat_decode_args(args)
+    filename, = args
+    filename = path2abs(filename)
+    [filename]
+  end
   check_primitive(:file_stat) {|filename|
     begin
       st = File.stat(filename)
@@ -256,10 +309,10 @@ class Dep
     }
   end
 
-  primitive(:read_json) {|filename|
+  def read_json(filename)
     file_stat(filename)
     File.open(filename) {|f| JSON.load(f) }
-  }
+  end
 
   def run_pipeline(input_filename, output_filename, *commands)
     status_list = run_pipeline1(input_filename, output_filename, *commands)
