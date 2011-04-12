@@ -127,12 +127,14 @@ function update_stems(new_stems, set_stems) {
     var checkbox = document.getElementById("checkbox"+page);
     var img = document.getElementById("img"+page);
     var a = document.getElementById("show"+page);
+    var ball = document.getElementById("ball"+page);
 
     var suffix = '_' + (mode == 'n' ? 'c' : mode) + '.png';
     img.src = img.src.replace(/[^\/]+_[cgm]\.png$/, "small"+stem+suffix);
     full.href = full.href.replace(/[^\/]+_[cgm]\.png$/, "fullsize"+stem+suffix);
     checkbox.name = "checkbox"+stem;
     checkbox.checked = undefined;
+    ball.src = ball.src.replace(/_[cgmn]\.png$/,  '_' + mode + '.png');
 
     if (mode == 'n') {
       a.style.display = 'inline'
