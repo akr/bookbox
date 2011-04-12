@@ -53,6 +53,8 @@ system(
   "--resolution", resolution_dpi.to_s,
   "-l", top_left_x.to_s,
   "-x", "160",
+  "-y", "876.695",
+  "--page-height", "876.695",
   "--ald=yes")
 
 scan_json_path = "#{outdir}/scan.json"
