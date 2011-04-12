@@ -91,29 +91,10 @@ function flip_lr() {
     input.value = "L2R";
 }
 
-/*
-function test_ajax() {
-  var stats;
-  var http_request = new XMLHttpRequest();
-  http_request.open( "GET", '/i/0/stat.js', true );
-  http_request.onreadystatechange = function () {
-      if ( http_request.readyState == 4 ) {
-          if ( http_request.status == 200 ) {
-              stats = eval( "(" + http_request.responseText + ")" );
-          } else {
-              alert( "There was a problem with the URL." );
-          }
-          http_request = null;
-      }
-  };
-  http_request.send(null);
-}
-*/
-
 function image_sort(stems, uri, sign, sortkey, set_stems) {
   var stats;
   var http_request = new XMLHttpRequest();
-  http_request.open( "GET", '/i/0/stat.js', true );
+  http_request.open( "GET", uri, true );
   http_request.onreadystatechange = function () {
       if ( http_request.readyState == 4 ) {
           if ( http_request.status == 200 ) {
