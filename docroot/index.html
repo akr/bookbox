@@ -4,11 +4,11 @@
     <title>BookBox</title>
   </head>
   <body>
-    % @dirs.each_with_index {|dir, dir_num|
+    % @dirs.each {|dir_id, dir|
     %   stem = @im.image_stem_list(dir).first
     %   f = "small#{stem}_c.png"
-    <a href="/<%= h(u(dir_num)) %>/">
-      <img src="/i/<%= h(u(dir_num.to_s)) %>/<%= h(u(f)) %>">
+    <a href="/<%= h(u(dir_id)) %>/">
+      <img src="/i/<%= h(u(dir_id)) %>/<%= h(u(f)) %>">
     </a>
     % }
   </body>

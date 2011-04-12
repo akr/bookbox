@@ -80,13 +80,13 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
       filename << '/' << seg
     }
     params = nil
-    if %r{\A/(\d+)(/|\z)} =~ filename
+    if %r{\A/([^/.]+)(/|\z)} =~ filename
       # http://host:port/nnn/index.html => docroot/b/index.html
-      dir_num = $1.to_i
-      return err(req, res, "unexpected directory number: #{dir_num}") if @dirs.length <= dir_num
-      dir = @dirs[dir_num]
+      dir_id = $1
+      return err(req, res, "unexpected directory number: #{dir_id}") if !@dirs.include?(dir_id)
+      dir = @dirs[dir_id]
       params = get_params(dir)
-      filename = filename.sub(%r{\A/(\d+)(/|\z)}) { "/b#{$2}" }
+      filename = filename.sub(%r{\A/([^/.]+)(/|\z)}) { "/b#{$2}" }
     end
     filename = @docroot + filename
     return err(req, res, "file not found: #{filename}") unless File.file? filename
@@ -106,10 +106,10 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
 
   def do_POST(req, res)
     case req.path
-    when %r{\A/(\d+)/submit\z}
-      dir_num = $1.to_i
-      return err(req, res, "unexpected directory number: #{dir_num}") if @dirs.length <= dir_num
-      save(dir_num, req.query)
+    when %r{\A/([^/.]+)/submit\z}
+      dir_id = $1
+      return err(req, res, "unexpected directory number: #{dir_id}") if !@dirs.include?(dir_id)
+      save(@dirs[dir_id], req.query)
       redirect(res, "/#{$1}/")
     else
       err(req, res, "unexpected uri: #{req.request_uri}")
@@ -117,8 +117,7 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
     nil
   end
 
-  def save(dir_num, query)
-    dir = @dirs[dir_num]
+  def save(dir, query)
     stems = @im.image_stem_list(dir)
     stem_hash = {}
     stems.each {|stem| stem_hash[stem] = stem }
@@ -176,18 +175,18 @@ class ImageDirHandler < WEBrick::HTTPServlet::AbstractServlet
       redirect(res, "/i/")
     when '/i/'
       redirect(res, "/i/0/")
-    when %r{\A/i/(\d+)\z}
+    when %r{\A/i/([^/.]+)\z}
       redirect(res, "/i/#{$1}/")
-    when %r{\A/i/(\d+)/\z}
-      dir = @dirs[dir_num = $1.to_i]
-      return err(req, res, "unexpected directory number: #{dir_num}") if !dir
+    when %r{\A/i/([^/.]+)/\z}
+      dir = @dirs[dir_id = $1]
+      return err(req, res, "unexpected directory number: #{dir_id}") if !dir
       res.filename = dir
       WEBrick::HTTPServlet::FileHandler.get_instance(@server, res.filename, :FancyIndexing => true).service(req, res)
-    when %r{\A/i/(\d+)/([^/]+)\z}
-      dir_num = $1.to_i
+    when %r{\A/i/([^/.]+)/([^/]+)\z}
+      dir_id = $1
       basename = $2
-      dir = @dirs[dir_num]
-      return err(req, res, "unexpected directory number: #{dir_num}") if !dir
+      dir = @dirs[dir_id]
+      return err(req, res, "unexpected directory number: #{dir_id}") if !dir
       #return redirect(res, "file://#{dir}/.bookbox/#{basename}")
       res.filename = "#{dir}/.bookbox/#{basename}"
       @im.make(res.filename)
@@ -202,7 +201,16 @@ end
 
 def main_server(argv)
   op_server.parse!(argv)
-  dirs = argv.map {|dir| File.realpath(dir) }
+  dirs = {}
+  argv.each_with_index {|dir, i|
+    dir = File.realpath(dir)
+    basename = File.basename(dir).gsub(/\./, '_')
+    if dirs.include?(dir)
+      warn "ambiguous directory filename: #{basename.inspect}"
+      next
+    end
+    dirs[basename] = dir
+  }
   im = BookBox::ImageMaker.new
   im.verbose = true if $opt_verbose
   webrick_config = {
