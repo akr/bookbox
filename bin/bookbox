@@ -83,7 +83,7 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
     if %r{\A/([^/.]+)(/|\z)} =~ filename
       # http://host:port/nnn/index.html => docroot/b/index.html
       dir_id = $1
-      return err(req, res, "unexpected directory number: #{dir_id}") if !@dirs.include?(dir_id)
+      return err(req, res, "unexpected directory id: #{dir_id}") if !@dirs.include?(dir_id)
       dir = @dirs[dir_id]
       params = get_params(dir)
       filename = filename.sub(%r{\A/([^/.]+)(/|\z)}) { "/b#{$2}" }
@@ -108,7 +108,7 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
     case req.path
     when %r{\A/([^/.]+)/submit\z}
       dir_id = $1
-      return err(req, res, "unexpected directory number: #{dir_id}") if !@dirs.include?(dir_id)
+      return err(req, res, "unexpected directory id: #{dir_id}") if !@dirs.include?(dir_id)
       save(@dirs[dir_id], req.query)
       redirect(res, "/#{$1}/")
     else
@@ -179,14 +179,14 @@ class ImageDirHandler < WEBrick::HTTPServlet::AbstractServlet
       redirect(res, "/i/#{$1}/")
     when %r{\A/i/([^/.]+)/\z}
       dir = @dirs[dir_id = $1]
-      return err(req, res, "unexpected directory number: #{dir_id}") if !dir
+      return err(req, res, "unexpected directory id: #{dir_id}") if !dir
       res.filename = dir
       WEBrick::HTTPServlet::FileHandler.get_instance(@server, res.filename, :FancyIndexing => true).service(req, res)
     when %r{\A/i/([^/.]+)/([^/]+)\z}
       dir_id = $1
       basename = $2
       dir = @dirs[dir_id]
-      return err(req, res, "unexpected directory number: #{dir_id}") if !dir
+      return err(req, res, "unexpected directory id: #{dir_id}") if !dir
       #return redirect(res, "file://#{dir}/.bookbox/#{basename}")
       res.filename = "#{dir}/.bookbox/#{basename}"
       @im.make(res.filename)
