@@ -34,11 +34,11 @@
       <%= stems.length %> images
       <br>
       sort by:
-      <a href="javascript:<%= h("image_sort(stems, '/i/#{u(dir_id)}/stat.js', 1, 'page', set_stems)") %>">scanned</a>
-      <a href="javascript:<%= h("image_sort(stems, '/i/#{u(dir_id)}/stat.js', 1, 'value_mean', set_stems)") %>">val_mean</a>
-      <a href="javascript:<%= h("image_sort(stems, '/i/#{u(dir_id)}/stat.js', -1, 'value_stddev', set_stems)") %>">val_stddev</a>
-      <a href="javascript:<%= h("image_sort(stems, '/i/#{u(dir_id)}/stat.js', -1, 'saturation_mean', set_stems)") %>">sat_mean</a>
-      <a href="javascript:<%= h("image_sort(stems, '/i/#{u(dir_id)}/stat.js', -1, 'saturation_stddev', set_stems)") %>">sat_stddev</a>
+      <a href="javascript:<%= h("image_sort(stems, '/#{u(dir_id)}/i/stat.js', 1, 'page', set_stems)") %>">scanned</a>
+      <a href="javascript:<%= h("image_sort(stems, '/#{u(dir_id)}/i/stat.js', 1, 'value_mean', set_stems)") %>">val_mean</a>
+      <a href="javascript:<%= h("image_sort(stems, '/#{u(dir_id)}/i/stat.js', -1, 'value_stddev', set_stems)") %>">val_stddev</a>
+      <a href="javascript:<%= h("image_sort(stems, '/#{u(dir_id)}/i/stat.js', -1, 'saturation_mean', set_stems)") %>">sat_mean</a>
+      <a href="javascript:<%= h("image_sort(stems, '/#{u(dir_id)}/i/stat.js', -1, 'saturation_stddev', set_stems)") %>">sat_stddev</a>
       <input type="submit" value="save">
 
       % params.keys.sort.each {|name|
@@ -63,10 +63,10 @@
             %   img_id = "img#{page}"
             %   ball_id = "ball#{page}"
             %   suffix = "#{stem}_#{color_mode == 'n' ? 'c' : color_mode}.png"
-            %   full_href = "/i/#{u(dir_id)}/#{u("fullsize#{suffix}")}"
+            %   full_href = "/#{u(dir_id)}/i/#{u("fullsize#{suffix}")}"
             %   checkbox_name = "checkbox#{stem}"
             %   cycle_code = "cycle_color_mode(stems, #{page})"
-            %   img_src = "/i/#{u(dir_id)}/#{u("small#{suffix}")}"
+            %   img_src = "/#{u(dir_id)}/i/#{u("small#{suffix}")}"
             %   show_style, img_style = color_mode == 'n' ? ['', 'display: none;'] : ['display: none;', '']
             %   ball_url = "/ball_#{color_mode}.png"
             <a id="<%= h(full_id) %>" href="<%= h(full_href) %>">full</a>
@@ -94,11 +94,11 @@
       <%= stems.length %> images
       <br>
       sort by:
-      <a href="javascript:<%= h("image_sort(stems, '/i/#{u(dir_id)}/stat.js', 1, 'page', set_stems)") %>">scanned</a>
-      <a href="javascript:<%= h("image_sort(stems, '/i/#{u(dir_id)}/stat.js', 1, 'value_mean', set_stems)") %>">val_mean</a>
-      <a href="javascript:<%= h("image_sort(stems, '/i/#{u(dir_id)}/stat.js', -1, 'value_stddev', set_stems)") %>">val_stddev</a>
-      <a href="javascript:<%= h("image_sort(stems, '/i/#{u(dir_id)}/stat.js', -1, 'saturation_mean', set_stems)") %>">sat_mean</a>
-      <a href="javascript:<%= h("image_sort(stems, '/i/#{u(dir_id)}/stat.js', -1, 'saturation_stddev', set_stems)") %>">sat_stddev</a>
+      <a href="javascript:<%= h("image_sort(stems, '/#{u(dir_id)}/i/stat.js', 1, 'page', set_stems)") %>">scanned</a>
+      <a href="javascript:<%= h("image_sort(stems, '/#{u(dir_id)}/i/stat.js', 1, 'value_mean', set_stems)") %>">val_mean</a>
+      <a href="javascript:<%= h("image_sort(stems, '/#{u(dir_id)}/i/stat.js', -1, 'value_stddev', set_stems)") %>">val_stddev</a>
+      <a href="javascript:<%= h("image_sort(stems, '/#{u(dir_id)}/i/stat.js', -1, 'saturation_mean', set_stems)") %>">sat_mean</a>
+      <a href="javascript:<%= h("image_sort(stems, '/#{u(dir_id)}/i/stat.js', -1, 'saturation_stddev', set_stems)") %>">sat_stddev</a>
       <input type="submit" value="save">
     </form>
   </body>
