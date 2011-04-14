@@ -50,21 +50,32 @@ content_fn, content_w = find_pages(filenames)
 
 front_jacket_x = (jacket_w - cover_w) / 2
 front_jacket_w = cover_w - content_w
+back_jacket_x = front_jacket_x + content_w
 
 front_jacket_x -= front_jacket_w * 0.05
+back_jacket_x -= front_jacket_w * 0.05
 front_jacket_w += front_jacket_w * 0.05
 front_jacket_x = front_jacket_x.round
+back_jacket_x = back_jacket_x.round
 front_jacket_w = front_jacket_w.round
 front_jacket_x = 0 if front_jacket_x < 0
+back_jacket_x = 0 if back_jacket_x < 0
 
-if rotate
-  command = ['pnmcut', '-top', front_jacket_x.to_s, '-height', front_jacket_w.to_s, jacket_fn]
-else
-  command = ['pnmcut', '-left', front_jacket_x.to_s, '-width', front_jacket_w.to_s, jacket_fn]
+def mkcommand(rotate, x, w, jacket_fn)
+  if rotate
+    command1 = ['pnmcut', '-top', x.to_s, '-height', w.to_s, jacket_fn]
+  else
+    command1 = ['pnmcut', '-left', x.to_s, '-width', w.to_s, jacket_fn]
+  end
 end
 
-front_jacket_fn = jacket_fn.sub(/\d+/) { '0' * $&.length }
-system(*command, :out => front_jacket_fn)
+command1 = mkcommand(rotate, front_jacket_x, front_jacket_w, jacket_fn)
+command2 = mkcommand(rotate, back_jacket_x, front_jacket_w, jacket_fn)
+
+front_jacket_fn = jacket_fn.sub(/\d+/) { "%0#{$&.length}d" % 0 }
+system(*command1, :out => front_jacket_fn)
+back_jacket_fn = jacket_fn.sub(/\d+/) { "%0#{$&.length}d" % 1 }
+system(*command2, :out => back_jacket_fn)
 
 if File.file?("scan.json")
   params = File.open("scan.json") {|f| JSON.load(f) }
@@ -73,6 +84,7 @@ if File.file?("scan.json")
   params.each {|k, v|
     next if pat !~ k
     params2["pages:#{front_jacket_fn}:#{$'}"] = v
+    params2["pages:#{back_jacket_fn}:#{$'}"] = v
   }
   File.open("scan2.json", 'w') {|f| f.puts JSON.pretty_generate(params2) }
 end
