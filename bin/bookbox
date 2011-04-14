@@ -35,10 +35,11 @@ module ServletUtil
   end
 end
 
-class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
+class BookBoxHandler < WEBrick::HTTPServlet::AbstractServlet
   include ServletUtil
 
   def initialize(server, docroot, im, dirs)
+    @server = server
     @config = server.config
     @docroot = docroot
     @im = im
@@ -70,7 +71,7 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
   end
 
   def do_GET(req, res)
-    #p [:TopDirHandler, req.path]
+    #p [:BookBoxHandler, req.path]
     filename = ''
     path = req.path
     path += 'index.html' if %r{/\z} =~ path
@@ -80,7 +81,9 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
       filename << '/' << seg
     }
     params = nil
-    if %r{\A/([^/.]+)(/|\z)} =~ filename
+    if %r{\A/([^/.]+)/i(/|\z)} =~ filename
+      return make_get(req, res)
+    elsif %r{\A/([^/.]+)(/|\z)} =~ filename
       # http://host:port/nnn/index.html => docroot/b/index.html
       dir_id = $1
       return err(req, res, "unexpected directory id: #{dir_id}") if !@dirs.include?(dir_id)
@@ -101,6 +104,30 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
       content = erb_filter(filename, req, res, content, params)
     end
     res.body = content
+    nil
+  end
+
+  def make_get(req, res)
+    case req.path
+    when '/([^/.]+)/i'
+      redirect(res, "/#{$1}/i/")
+    when %r{\A/([^/.]+)/i/\z}
+      dir = @dirs[dir_id = $1]
+      return err(req, res, "unexpected directory id: #{dir_id}") if !dir
+      req.path_info = "/"
+      WEBrick::HTTPServlet::FileHandler.get_instance(@server, dir, :FancyIndexing => true).service(req, res)
+    when %r{\A/([^/.]+)/i/([^/]+)\z}
+      dir_id = $1
+      basename = $2
+      dir = @dirs[dir_id]
+      return err(req, res, "unexpected directory id: #{dir_id}") if !dir
+      #return redirect(res, "file://#{dir}/.bookbox/#{basename}")
+      res.filename = "#{dir}/.bookbox/#{basename}"
+      @im.make(res.filename)
+      WEBrick::HTTPServlet::DefaultFileHandler.get_instance(@config, res.filename).service(req, res)
+    else
+      err(req, res, "unexpected uri: #{req.request_uri}")
+    end
     nil
   end
 
@@ -158,47 +185,6 @@ class TopDirHandler < WEBrick::HTTPServlet::AbstractServlet
   end
 end
 
-class ImageDirHandler < WEBrick::HTTPServlet::AbstractServlet
-  include ServletUtil
-
-  def initialize(server, im, dirs)
-    @im = im
-    @server = server
-    @config = server.config
-    @dirs = dirs
-  end
-
-  def do_GET(req, res)
-    #p [:ImageDirHandler, req.path]
-    case req.path
-    when '/i'
-      redirect(res, "/i/")
-    when '/i/'
-      redirect(res, "/i/0/")
-    when %r{\A/i/([^/.]+)\z}
-      redirect(res, "/i/#{$1}/")
-    when %r{\A/i/([^/.]+)/\z}
-      dir = @dirs[dir_id = $1]
-      return err(req, res, "unexpected directory id: #{dir_id}") if !dir
-      res.filename = dir
-      WEBrick::HTTPServlet::FileHandler.get_instance(@server, res.filename, :FancyIndexing => true).service(req, res)
-    when %r{\A/i/([^/.]+)/([^/]+)\z}
-      dir_id = $1
-      basename = $2
-      dir = @dirs[dir_id]
-      return err(req, res, "unexpected directory id: #{dir_id}") if !dir
-      #return redirect(res, "file://#{dir}/.bookbox/#{basename}")
-      res.filename = "#{dir}/.bookbox/#{basename}"
-      @im.make(res.filename)
-      WEBrick::HTTPServlet::DefaultFileHandler.get_instance(@config, res.filename).service(req, res)
-    else
-      err(req, res, "unexpected uri: #{req.request_uri}")
-    end
-    nil
-  end
-
-end
-
 def main_server(argv)
   op_server.parse!(argv)
   dirs = {}
@@ -223,9 +209,7 @@ def main_server(argv)
   trap("INT"){ srv.shutdown }
   trap("TERM"){ srv.shutdown }
   trap("QUIT"){ srv.shutdown }
-  srv.mount('', TopDirHandler, $opt_docroot, im, dirs)
-  #srv.mount('/t', WEBrick::HTTPServlet::FileHandler, File.expand_path($opt_image_dir), :FancyIndexing => true)
-  srv.mount('/i/', ImageDirHandler, im, dirs)
+  srv.mount('', BookBoxHandler, $opt_docroot, im, dirs)
   srv.start
 end
 
