@@ -33,7 +33,7 @@ else
     /\Aout([0-9]+)\.pnm\z/ !~ f
   }.map {|f| f[/\d+/].to_i }
   if nums.empty?
-    start = 0
+    start = 1
   else
     start = nums.max + 1
   end
