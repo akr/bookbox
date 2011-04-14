@@ -9,14 +9,43 @@ class BookBox::ImageMaker < ::Dep
   PCOLORMODE = /(?<colormode>[cgm])/
   PBASE = %r{(?<base>(small|fullsize))}
 
-  source %r{#{PDIR}scan\.json\z}
+  source %r{#{PDIR}scan[0-9]*\.json\z}
+
+  def glob_encode_args(args)
+    [path2rel(args[0]), args[1]]
+  end
+  def glob_decode_args(args)
+    [path2abs(args[0]), args[1]]
+  end
+  primitive(:glob) {|dir, pat|
+    result = []
+    Dir.entries(dir).each {|f|
+      next if pat !~ File.basename(f)
+      result << f
+    }
+    result.sort_by {|f| strnumsortkey(f) }
+    result.map {|f| File.join(dir, f) }
+  }
+
+  def read_scan_json(dir)
+    fs = glob(dir, /\Ascan[0-9]*\.json\z/)
+    if fs.include? "#{dir}/scan.json"
+      fs.delete "#{dir}/scan.json"
+      fs.unshift "#{dir}/scan.json"
+    end
+    result = {}
+    fs.each {|f|
+      result.update read_json(f)
+    }
+    result
+  end
 
   rule(%r{#{PDIR}out#{PSTEM}\.pnm\z}) {|match, out_fn|
     dir = match[:dir]
     unless file_stat(out_fn)
       raise ArgumentError, "no source image: #{out_fn}"
     end
-    scan_params = hashtree_nested(read_json("#{dir}scan.json"))
+    scan_params = hashtree_nested(read_scan_json(dir))
     scan_params["pages"][File.basename(out_fn)] || {}
   }
 
