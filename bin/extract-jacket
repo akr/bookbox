@@ -36,7 +36,7 @@ def find_pages(filenames)
 
   sorted_sizes = sizes.sort_by.with_index {|(fn, w, h), i| [w, i] }
 
-  max_w = sorted_sizes[0][1]
+  max_w = sorted_sizes[-1][1]
   jacket_fn, jacket_w, = sizes.reject {|fn, w, h| w < max_w*0.9 }[0]
   content_fn, content_w, = sorted_sizes[sizes.length/2]
   cover_fn, cover_w = sorted_sizes.find {|fn, w, h| content_w * 2 < w }
@@ -47,6 +47,7 @@ rotate,
 jacket_fn, jacket_w,
 cover_fn, cover_w,
 content_fn, content_w = find_pages(filenames)
+#p find_pages(filenames)
 
 front_jacket_x = (jacket_w - cover_w) / 2
 front_jacket_w = cover_w - content_w
