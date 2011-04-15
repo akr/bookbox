@@ -137,6 +137,30 @@ class BookBox::ImageMaker < ::Dep
     file_stat(js_fn)
   }
 
+  rule(%r{#{PDIR}all\z}) {|match, all_fn|
+    dir = match[:dir]
+    stems = image_stem_list(dir)
+    %w[c g m].each {|color|
+      stems.each {|stem|
+        make("#{dir}.bookbox/#{size}#{stem}_#{color}.png")
+      }
+    }
+    make("#{dir}.bookbox/stat.js")
+  }
+
+  rule(%r{#{PDIR}all-full\z}) {|match, all_fn|
+    dir = match[:dir]
+    stems = image_stem_list(dir)
+    %w[small fullsize].each {|size|
+      %w[c g m].each {|color|
+        stems.each {|stem|
+          make("#{dir}.bookbox/#{size}#{stem}_#{color}.png")
+        }
+      }
+    }
+    make("#{dir}.bookbox/stat.js")
+  }
+
   def make_flip_command(angle)
     case angle
     when 0 then return nil
