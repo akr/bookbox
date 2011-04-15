@@ -9,6 +9,9 @@ def main(argv)
   when 'server'
     require_relative '../lib/bookbox/main/server'
     main_server argv
+  when 'make'
+    require_relative '../lib/bookbox/main/make'
+    main_make argv
   else
     raise "unexpected subcommand: #{subcommand.inspect}"
   end
