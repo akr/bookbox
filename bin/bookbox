@@ -20,6 +20,9 @@ def main(argv)
   when 'make'
     require_relative '../lib/bookbox/main/make'
     main_make argv
+  when 'images2pdf'
+    require_relative '../lib/bookbox/main/images2pdf'
+    main_images2pdf argv
   else
     raise "unexpected subcommand: #{subcommand.inspect}"
   end
