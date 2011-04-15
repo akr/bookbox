@@ -5,7 +5,12 @@ require_relative '../lib/bookbox'
 def main(argv)
   subcommand = argv.shift || 'normal'
   case subcommand
-  when 'normal'
+  when 'scan'
+    require_relative '../lib/bookbox/main/scan'
+    main_scan argv, nil
+  when 'scan-bunko'
+    require_relative '../lib/bookbox/main/scan'
+    main_scan argv, 160
   when 'server'
     require_relative '../lib/bookbox/main/server'
     main_server argv

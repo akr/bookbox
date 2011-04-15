@@ -42,3 +42,7 @@ def hashtree_nested(h)
   }
   result
 end
+
+def bookbox_command
+  File.join(File.dirname(File.dirname(File.dirname(__FILE__))), 'bin/bookbox')
+end
