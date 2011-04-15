@@ -11,6 +11,9 @@ def main(argv)
   when 'scan-bunko'
     require_relative '../lib/bookbox/main/scan'
     main_scan argv, 160
+  when 'scan-shinsho'
+    require_relative '../lib/bookbox/main/scan'
+    main_scan argv, 190
   when 'jacket'
     require_relative '../lib/bookbox/main/jacket'
     main_jacket argv
