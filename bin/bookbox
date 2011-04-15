@@ -26,6 +26,9 @@ def main(argv)
   when 'images2pdf'
     require_relative '../lib/bookbox/main/images2pdf'
     main_images2pdf argv
+  when 'imagedir2pdf'
+    require_relative '../lib/bookbox/main/imagedir2pdf'
+    main_imagedir2pdf argv
   else
     raise "unexpected subcommand: #{subcommand.inspect}"
   end
