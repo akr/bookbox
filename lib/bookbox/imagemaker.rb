@@ -140,6 +140,7 @@ class BookBox::ImageMaker < ::Dep
   rule(%r{#{PDIR}all\z}) {|match, all_fn|
     dir = match[:dir]
     stems = image_stem_list(dir)
+    size = 'small'
     %w[c g m].each {|color|
       stems.each {|stem|
         make("#{dir}.bookbox/#{size}#{stem}_#{color}.png")
