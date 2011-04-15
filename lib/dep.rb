@@ -236,7 +236,7 @@ class Dep
     [filename]
   end
   def make1_inspect(encoded_args)
-    filename, = args
+    filename, = encoded_args
     "make(#{filename.inspect}"
   end
   def make1(filename)
