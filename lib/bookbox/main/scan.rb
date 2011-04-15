@@ -14,12 +14,14 @@ require 'open3'
 
 $opt_d = '.'
 $opt_s = nil
+$opt_f = nil
 
 def op_scan
   op = OptionParser.new
   op.def_option('-h', '--help', 'show help message') { puts op; exit 0 }
   op.def_option('-d DIR', '--destination-directory DIR', 'destination directory') {|arg| $opt_d = arg }
   op.def_option('-s START', '--start-page START', 'start page number') {|arg| $opt_s = arg }
+  op.def_option('-f', '--force-scan', 'disable double feed detection') { $opt_f = true }
   op
 end
 
@@ -50,7 +52,20 @@ def main_scan(argv, width=215.872)
   max_width = 215.872
   top_left_x = (max_width-width)/2
   resolution_dpi = 300 # dot per inch
-  system(
+
+  if $opt_f
+    df_options = %w[
+      --df-action=Default
+    ]
+  else
+    df_options = %w[
+      --df-action=Stop
+      --df-skew
+      --df-thickness
+      --df-length
+    ]
+  end
+  command = [
     "scanimage",
     "--batch=#{outdir}/out%0#{pagenum_width}d.pnm",
     "--batch-start=#{start}",
@@ -61,7 +76,11 @@ def main_scan(argv, width=215.872)
     "-x", width.to_s,
     "-y", "876.695",
     "--page-height", "876.695",
-    "--ald=yes")
+    "--ald=yes",
+    *df_options
+  ]
+  p command
+  system(*command)
 
   scan_json_path = "#{outdir}/scan.json"
   if File.exist? scan_json_path
