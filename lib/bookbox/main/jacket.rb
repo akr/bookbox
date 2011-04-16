@@ -56,26 +56,33 @@ def main_jacket(argv)
   content_fn, content_w = find_pages(filenames)
   #p find_pages(filenames)
 
-  front_jacket_x = (jacket_w - cover_w) / 2
-  front_jacket_w = cover_w - content_w
-  back_jacket_x = front_jacket_x + content_w
+  content_w = (content_w * 1.05).round
 
-  front_jacket_x -= front_jacket_w * 0.05
-  back_jacket_x -= front_jacket_w * 0.05
-  front_jacket_w += front_jacket_w * 0.05
-  front_jacket_x = front_jacket_x.round
-  back_jacket_x = back_jacket_x.round
-  front_jacket_w = front_jacket_w.round
-  front_jacket_x = 0 if front_jacket_x < 0
-  back_jacket_x = 0 if back_jacket_x < 0
+  flap_w = (jacket_w - cover_w) / 2
+  spine_w = cover_w - content_w * 2
 
-  command1 = mkcommand(rotate, front_jacket_x, front_jacket_w, jacket_fn)
-  command2 = mkcommand(rotate, back_jacket_x, front_jacket_w, jacket_fn)
+  front_flap_x = 0
+  front_flap_w = flap_w
+  front_jacket_x = front_flap_x + flap_w
+  front_jacket_w = content_w + spine_w
+  back_jacket_x = front_jacket_x + front_jacket_w
+  back_jacket_w = content_w
+  back_flap_x = back_jacket_x + back_jacket_w
+  back_flap_w = flap_w
 
-  front_jacket_fn = jacket_fn.sub(/\d+/) { "%0#{$&.length}d" % 0 }
-  system(*command1, :out => front_jacket_fn)
-  back_jacket_fn = jacket_fn.sub(/\d+/) { "%0#{$&.length}d" % 1 }
-  system(*command2, :out => back_jacket_fn)
+  ary = []
+  ary << mkcommand(rotate, front_jacket_x, front_jacket_w, jacket_fn)
+  ary << mkcommand(rotate, front_flap_x, front_flap_w, jacket_fn)
+  ary << mkcommand(rotate, back_flap_x, back_flap_w, jacket_fn)
+  ary << mkcommand(rotate, back_jacket_x, back_jacket_w, jacket_fn)
+
+  fmt = "%0#{$&.length}d"
+  fns = []
+  ary.each_with_index {|command, i|
+    fn = jacket_fn.sub(/\d+/) { fmt % i }
+    fns << fn
+    system(*command, :out => fn)
+  }
 
   if File.file?("scan.json")
     params = File.open("scan.json") {|f| JSON.load(f) }
@@ -83,8 +90,9 @@ def main_jacket(argv)
     pat = /\Apages:(#{Regexp.escape jacket_fn}):/
     params.each {|k, v|
       next if pat !~ k
-      params2["pages:#{front_jacket_fn}:#{$'}"] = v
-      params2["pages:#{back_jacket_fn}:#{$'}"] = v
+      fns.each {|fn|
+        params2["pages:#{fn}:#{$'}"] = v
+      }
     }
     File.open("scan2.json", 'w') {|f| f.puts JSON.pretty_generate(params2) }
   end
