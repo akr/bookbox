@@ -32,7 +32,7 @@ def main_images2pdf(argv)
 
   Dir.mktmpdir('images2pdf') {|d|
     fs = []
-    Find.find(*ARGV) {|path|
+    Find.find(*argv) {|path|
       if File.directory?(path)
         if File.file?("#{path}/scan.json") ||
            File.file?("#{path}/params.json")

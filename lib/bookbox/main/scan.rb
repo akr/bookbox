@@ -27,7 +27,7 @@ end
 
 def main_scan(argv, width=215.872)
   op = op_scan
-  op.parse(ARGV)
+  op.parse(argv)
 
   outdir = $opt_d
   unless File.directory? outdir
