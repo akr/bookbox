@@ -60,7 +60,7 @@ class BookBoxHandler < WEBrick::HTTPServlet::AbstractServlet
     stems = @im.image_stem_list(dir)
     params["ViewerPreferencesDirection"] ||= "L2R"
     stems.each_with_index {|stem, i|
-      params["pages:out#{stem}.pnm:colormode"] ||= "c"
+      params["pages:out#{stem}.pnm:colormode"] ||= "g"
       params["pages:out#{stem}.pnm:page"] = i.to_s
     }
     params
