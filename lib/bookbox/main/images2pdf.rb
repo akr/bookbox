@@ -68,6 +68,8 @@ def main_images2pdf(argv)
     num_generated = 0
     fs.each {|f|
       case f
+      when %r{(\A|/)\.dep-[^/]*\.marshal\z}
+        next
       when /\.pdf\z/i
         STDERR.puts "use #{f.inspect} as is." if $opt_verbose
         pdfs << f
@@ -81,19 +83,25 @@ def main_images2pdf(argv)
         system("tifftopnm --headerdump #{f} > #{tf} 2> #{ef}") # xxx
         info = File.read(ef)
         sam2p_dpi = 72
-        if %r{Resolution: (\d+), (\d+) pixels/inch} =~ info
-          dpi = $1.to_i
-          # sam2p 0.47 generates bigger image for bigger resolution... sigh.
-          sam2p_dpi = 72 * (72.0 / dpi)
-        end
-        system("sam2p", "-j:quiet", "-pdf:2", "-m:dpi:#{sam2p_dpi}", tf, of)
+        dpi = 72
+        #if %r{Resolution: (\d+), (\d+) pixels/inch} =~ info
+        #  dpi = $1.to_i
+        #  # sam2p 0.47 generates bigger image for bigger resolution... sigh.
+        #  sam2p_dpi = 72 * (72.0 / dpi)
+        #end
+        #system("sam2p", "-j:quiet", "-pdf:2", "-m:dpi:#{sam2p_dpi}", tf, of)
+        system("convert", "-density", dpi.to_s, f, of)
         pdfs << of
       when /\.(pnm|pbm|pgm|ppm|xpm|gif|lbm|tga|pcx|jpe?g|png|ps|eps)\z/i
         STDERR.puts "convert #{f.inspect} to pdf." if $opt_verbose
         n = num_generated
         num_generated += 1
         of = "#{d}/t#{n}.pdf"
-        system("sam2p", "-j:quiet", "-pdf:2", f, of)
+        #system("sam2p", "-j:quiet", "-pdf:2", f, of)
+        #system("convert", f, of)
+        #system("convert", "-compress", "LZW", f, of)
+        #system("convert", "-compress", "Zip", '-quality', '1', f, of)
+        system("convert", "-compress", "Zip", f, of)
         pdfs << of
       else
         warn "unexpected file type: #{f.inspect}"
