@@ -46,7 +46,7 @@ class BookBox::ImageMaker < ::Dep
       raise ArgumentError, "no source image: #{out_fn}"
     end
     scan_params = hashtree_nested(read_scan_json(dir))
-    scan_params["pages"][File.basename(out_fn)] || {}
+    scan_params.fetch("pages", {}).fetch(File.basename(out_fn), {})
   }
 
   def image_stem_list_encode_args(args)
