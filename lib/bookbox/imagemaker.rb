@@ -40,7 +40,7 @@ class BookBox::ImageMaker < ::Dep
     result
   end
 
-  rule(%r{#{PDIR}out#{PSTEM}\.pnm\z}) {|match, out_fn|
+  source(%r{#{PDIR}out#{PSTEM}\.pnm\z}) {|match, out_fn|
     dir = match[:dir]
     unless file_stat(out_fn)
       raise ArgumentError, "no source image: #{out_fn}"

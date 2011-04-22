@@ -191,7 +191,12 @@ class Dep
 
   def self.rule(output_pattern, *input_repl_list, &block)
     @rules ||= []
-    @rules << [output_pattern, input_repl_list, block]
+    @rules << [output_pattern, :rule, input_repl_list, block]
+  end
+
+  def self.source(filename_pattern, &block)
+    @rules ||= []
+    @rules << [filename_pattern, :source, block]
   end
 
   def self.get_rules
@@ -243,37 +248,63 @@ class Dep
     internal_memo(self, :make2, filename)
   end
 
-  def make2(filename)
-    d, f = File.split(filename)
-    path = File.join(d, ".dep-#{f}.marshal")
-    external_memo(path, filename.sub(@cwd_pat, '')) { make3(filename) }
-  end
-
-  def make3(filename)
+  def find_rule(filename)
     rules = self.class.get_rules
     matched = []
-    rules.each {|output_pattern, input_repl_list, block|
+    rules.each {|output_pattern, rule_type, input_repl_list, block|
       if output_pattern =~ filename
-        matched << [output_pattern, input_repl_list, block]
+        matched << [output_pattern, rule_type, input_repl_list, block]
       end
     }
     if matched.empty?
       raise ArgumentError, "no rule for #{filename}"
     end
     if matched.length == 1
-      choosen_output_pattern, choosen_input_repl_list, choosen_block = matched[0]
+      choosen_rule = matched[0]
     else
       prio_pat = self.class.get_ambiguous_patterns(*matched.map {|pat,| pat })
       if prio_pat
-        choosen_output_pattern, choosen_input_repl_list, choosen_block =
-          matched.find {|pat,| pat == prio_pat }
+        choosen_rule = matched.find {|pat,| pat == prio_pat }
       else
-        choosen_output_pattern, choosen_input_repl_list, choosen_block = matched[0]
+        choosen_rule = matched[0]
+        choosen_output_pattern, choosen_rule_type, = choosen_rule
         s1 = choosen_output_pattern.inspect
         s2 = matched[1..-1].map {|pat,| pat }.map {|pat| pat.inspect}.join(", ")
         warn "ambiguous patterns.  #{s1} choosen.  #{s2} ignored."
       end
     end
+    choosen_rule
+  end
+
+  def make2(filename)
+    rule = find_rule(filename)
+    choosen_output_pattern, choosen_rule_type, = rule
+    #p [filename, choosen_rule_type]
+    case choosen_rule_type
+    when :source
+      make_source(filename, rule)
+    when :rule
+      d, f = File.split(filename)
+      path = File.join(d, ".dep-#{f}.marshal")
+      external_memo(path, filename.sub(@cwd_pat, '')) { make_rule(filename, rule) }
+    else
+      raise "unexpected rule type: #{choosen_rule_type}"
+    end
+  end
+
+  def make_source(filename, rule)
+    choosen_output_pattern, choosen_rule_type, choosen_block = rule
+    if choosen_block
+      res = self.instance_exec(choosen_output_pattern.match(filename), filename, &choosen_block)
+      file_stat(filename)
+    else
+      res = file_stat(filename)
+    end
+    res
+  end
+
+  def make_rule(filename, choosen_rule)
+    choosen_output_pattern, choosen_rule_type, choosen_input_repl_list, choosen_block = choosen_rule
     args = choosen_input_repl_list.map {|repl|
       fn = Proc === repl ? filename.sub(choosen_output_pattern, &repl) :
                            filename.sub(choosen_output_pattern, repl)
@@ -304,14 +335,6 @@ class Dep
     end
     [st.mtime, st.size]
   }
-
-  def self.source(filename_pattern)
-    rule(filename_pattern) {|match, filename|
-      unless file_stat filename
-        raise ArgumentError, "no source file: #{filename}"
-      end
-    }
-  end
 
   def read_json(filename)
     file_stat(filename)
