@@ -55,7 +55,7 @@ class BookBoxHandler < WEBrick::HTTPServlet::AbstractServlet
     else
       params = {}
     end
-    scan_params = @im.read_json("#{dir}/scan.json")
+    scan_params = @im.read_scan_json(dir)
     params = scan_params.merge(params)
     stems = @im.image_stem_list(dir)
     params["ViewerPreferencesDirection"] ||= "L2R"
@@ -169,7 +169,7 @@ class BookBoxHandler < WEBrick::HTTPServlet::AbstractServlet
         params[name] = v
       end
     }
-    scan_params = @im.read_json("#{dir}/scan.json")
+    scan_params = @im.read_scan_json(dir)
     scan_params.each {|k,v|
       params.delete(k) if params[k] == v
     }
@@ -185,9 +185,9 @@ def main_server(argv)
   op_server.parse!(argv)
   dirs = {}
   argv.each_with_index {|dir, i|
-    dir = File.realpath(dir)
-    basename = File.basename(dir).gsub(/\./, '_')
-    if dirs.include?(dir)
+    dir = Pathname.new(File.realpath(dir))
+    basename = dir.basename.to_s.gsub(/\./, '_')
+    if dirs.include?(basename)
       warn "ambiguous directory filename: #{basename.inspect}"
       next
     end

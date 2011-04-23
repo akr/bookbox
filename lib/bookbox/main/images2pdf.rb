@@ -39,9 +39,11 @@ def main_images2pdf(argv)
           im = BookBox::ImageMaker.new
           im.verbose = true
           dir = File.realpath(path)
+          dir_path = Pathname.new(dir)
+          params_json_path = dir_path + "params.json"
           params = {}
-          params.update im.read_json("#{dir}/scan.json") if File.file?("#{dir}/scan.json")
-          params.update im.read_json("#{dir}/params.json") if File.file?("#{dir}/params.json")
+          params.update im.read_scan_json(dir_path)
+          params.update im.read_json(params_json_path) if params_json_path.file?
           h = hashtree_nested(params)
           h2 = h["pages"]
           h2.keys.sort_by {|f| strnumsortkey(f) }.each {|out_fn|

@@ -70,7 +70,7 @@ class Dep
       old_history = Thread.current[:dep_external_memo_history]
       old_directory = Thread.current[:dep_external_memo_directory]
       Thread.current[:dep_external_memo_history] = []
-      Thread.current[:dep_external_memo_directory] = File.dirname(log_filename)
+      Thread.current[:dep_external_memo_directory] = log_filename.dirname
       external_memo2(log_filename, mesg_filename, &block)
     ensure
       Thread.current[:dep_external_memo_history] = old_history
@@ -80,9 +80,9 @@ class Dep
 
   def external_memo2(log_filename, mesg_filename)
     vmesg "try: #{mesg_filename}"
-    log_dir = File.dirname(log_filename)
-    FileUtils.mkdir_p(log_dir) if !File.directory?(log_dir)
-    File.open(log_filename, File::RDWR|File::CREAT, 0644) {|log_io|
+    log_dir = log_filename.dirname
+    log_dir.mkpath if !log_dir.directory?
+    log_filename.open(File::RDWR|File::CREAT, 0644) {|log_io|
       log_io.flock(File::LOCK_EX)
       if ((if 0 < log_io.stat.size
              true
@@ -90,9 +90,8 @@ class Dep
              reason = "no build log"
              false
            end) &&
-          (log = Marshal.load(log_io)) &&
-          log["history"].all? {|type, meth, encoded_args, res|
-            args = self.send("#{meth}_decode_args", encoded_args)
+          (log = decode_pathname(Marshal.load(log_io))) &&
+          log["history"].all? {|type, meth, args, res|
             if type == :update
               res2 = self.send(meth, *args)
               success = res2 == res
@@ -107,7 +106,7 @@ class Dep
               true
             else
               reason = self.respond_to?("#{meth}_inspect") ?
-                       self.send("#{meth}_inspect", encoded_args) :
+                       self.send("#{meth}_inspect", args) :
                        "#{meth}(#{args.map {|a| a.inspect }.join(', ')})"
               reason += "\nold value: #{res.inspect}\nnew value: #{res2.inspect}"
               false
@@ -127,7 +126,7 @@ class Dep
             "result" => result
           }
           log_io.rewind
-          log_io.write Marshal.dump(h)
+          log_io.write Marshal.dump(encode_pathname(h))
           log_io.flush
           log_io.truncate(log_io.pos)
         ensure
@@ -143,8 +142,7 @@ class Dep
     res = self.send(meth, *args)
     history = Thread.current[:dep_external_memo_history]
     if history
-      encoded_args = self.send("#{meth}_encode_args", args)
-      history << [type, meth, encoded_args, res]
+      history << [type, meth, args, res]
     end
     res
   end
@@ -153,18 +151,8 @@ class Dep
     external_memo_log(type, :primitive_wrapper1, [pname, *args])
   end
 
-  def primitive_wrapper1_encode_args(all_args)
-    pname, *args = all_args
-    args = self.send("#{pname}_encode_args", args)
-    [pname, *args]
-  end
-  def primitive_wrapper1_decode_args(all_args)
-    pname, *args = all_args
-    args = self.send("#{pname}_decode_args", args)
-    [pname, *args]
-  end
-  def primitive_wrapper1_inspect(encoded_args)
-    pname, *args = encoded_args
+  def primitive_wrapper1_inspect(args)
+    pname, *args = args
     "#{pname}(#{args.map {|a| a.inspect }.join(', ')})"
   end
   def primitive_wrapper1(pname, *args)
@@ -218,6 +206,7 @@ class Dep
   end
 
   def make(filename)
+    filename = Pathname.new(filename) unless Pathname === filename
     external_memo_log(:update, :make1, [filename])
   end
 
@@ -230,18 +219,33 @@ class Dep
     (Pathname(directory)+Pathname(path)).to_s
   end
 
-  def make1_encode_args(args)
-    filename, = args
-    filename = path2rel(filename)
-    [filename]
+  def encode_pathname(args)
+    directory = Thread.current[:dep_external_memo_directory]
+    directory = Pathname(directory)
+    m = Marshal.dump(args)
+    Marshal.load(m, lambda {|o|
+      if Pathname === o
+        o.relative_path_from(directory)
+      else
+        o
+      end
+    })
   end
-  def make1_decode_args(args)
-    filename, = args
-    filename = path2abs(filename)
-    [filename]
+  def decode_pathname(args)
+    directory = Thread.current[:dep_external_memo_directory]
+    directory = Pathname(directory)
+    m = Marshal.dump(args)
+    Marshal.load(m, lambda {|o|
+      if Pathname === o
+        directory+o
+      else
+        o
+      end
+    })
   end
-  def make1_inspect(encoded_args)
-    filename, = encoded_args
+
+  def make1_inspect(args)
+    filename, = args
     "make(#{filename.inspect}"
   end
   def make1(filename)
@@ -252,7 +256,7 @@ class Dep
     rules = self.class.get_rules
     matched = []
     rules.each {|output_pattern, rule_type, input_repl_list, block|
-      if output_pattern =~ filename
+      if output_pattern =~ filename.to_s
         matched << [output_pattern, rule_type, input_repl_list, block]
       end
     }
@@ -284,8 +288,8 @@ class Dep
     when :source
       make_source(filename, rule)
     when :rule
-      d, f = File.split(filename)
-      path = File.join(d, ".dep-#{f}.marshal")
+      d, f = filename.split
+      path = d + ".dep-#{f}.marshal"
       external_memo(path, filename.sub(@cwd_pat, '')) { make_rule(filename, rule) }
     else
       raise "unexpected rule type: #{choosen_rule_type}"
@@ -295,7 +299,7 @@ class Dep
   def make_source(filename, rule)
     choosen_output_pattern, choosen_rule_type, choosen_block = rule
     if choosen_block
-      res = self.instance_exec(choosen_output_pattern.match(filename), filename, &choosen_block)
+      res = self.instance_exec(choosen_output_pattern.match(filename.to_s), filename, &choosen_block)
       file_stat(filename)
     else
       res = file_stat(filename)
@@ -312,24 +316,14 @@ class Dep
       file_stat(fn)
       [fn, r]
     }
-    res = self.instance_exec(choosen_output_pattern.match(filename), filename, *args, &choosen_block)
+    res = self.instance_exec(choosen_output_pattern.match(filename.to_s), filename, *args, &choosen_block)
     file_stat(filename)
     res
   end
 
-  def file_stat_encode_args(args)
-    filename, = args
-    filename = path2rel(filename)
-    [filename]
-  end
-  def file_stat_decode_args(args)
-    filename, = args
-    filename = path2abs(filename)
-    [filename]
-  end
   check_primitive(:file_stat) {|filename|
     begin
-      st = File.stat(filename)
+      st = filename.stat
     rescue Errno::ENOENT
       return nil
     end
@@ -338,11 +332,11 @@ class Dep
 
   def read_json(filename)
     file_stat(filename)
-    File.open(filename) {|f| JSON.load(f) }
+    filename.open {|f| JSON.load(f) }
   end
 
   def run_pipeline(input_filename, output_filename, *commands)
-    status_list = run_pipeline1(input_filename, output_filename, *commands)
+    status_list = run_pipeline1(input_filename.to_s, output_filename.to_s, *commands)
     status_list.each_with_index {|s, i|
       if !s.success?
         commandline = commands[i]

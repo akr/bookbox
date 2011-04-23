@@ -11,27 +11,22 @@ class BookBox::ImageMaker < ::Dep
 
   source %r{#{PDIR}scan[0-9]*\.json\z}
 
-  def glob_encode_args(args)
-    [path2rel(args[0]), args[1]]
-  end
-  def glob_decode_args(args)
-    [path2abs(args[0]), args[1]]
-  end
   primitive(:glob) {|dir, pat|
     result = []
-    Dir.entries(dir).each {|f|
-      next if pat !~ File.basename(f)
+    dir.entries.each {|f|
+      next if pat !~ f.basename.to_s
       result << f
     }
-    result.sort_by {|f| strnumsortkey(f) }
-    result.map {|f| File.join(dir, f) }
+    result.sort_by {|f| strnumsortkey(f.to_s) }
+    result.map {|f| dir + f }
   }
 
   def read_scan_json(dir)
     fs = glob(dir, /\Ascan[0-9]*\.json\z/)
-    if fs.include? "#{dir}/scan.json"
-      fs.delete "#{dir}/scan.json"
-      fs.unshift "#{dir}/scan.json"
+    scan_json_path = Pathname.new("#{dir}/scan.json")
+    if fs.include? scan_json_path
+      fs.delete scan_json_path
+      fs.unshift scan_json_path
     end
     result = {}
     fs.each {|f|
@@ -41,24 +36,18 @@ class BookBox::ImageMaker < ::Dep
   end
 
   source(%r{#{PDIR}out#{PSTEM}\.pnm\z}) {|match, out_fn|
-    dir = match[:dir]
+    dir = Pathname.new(match[:dir])
     unless file_stat(out_fn)
       raise ArgumentError, "no source image: #{out_fn}"
     end
     scan_params = hashtree_nested(read_scan_json(dir))
-    scan_params.fetch("pages", {}).fetch(File.basename(out_fn), {})
+    scan_params.fetch("pages", {}).fetch(out_fn.basename.to_s, {})
   }
 
-  def image_stem_list_encode_args(args)
-    [path2rel(args[0])]
-  end
-  def image_stem_list_decode_args(args)
-    [path2abs(args[0])]
-  end
   primitive(:image_stem_list) {|dir|
     result = []
-    Dir.entries(dir).each {|f|
-      next if f !~ %r{#{PDIR}out#{PSTEM}\.pnm\z}mo
+    dir.entries.each {|f|
+      next if %r{#{PDIR}out#{PSTEM}\.pnm\z}mo !~ f.to_s
       result << $~["stem"]
     }
     result.sort_by {|stem| strnumsortkey(stem) }
@@ -109,20 +98,21 @@ class BookBox::ImageMaker < ::Dep
 
   ambiguous(%r{#{PDIR}fullsize#{PSTEM}_#{PCOLORMODE}\.png\z}, %r{#{PDIR}(?<basename>[^/]+)\.png\z})
 
-  rule(%r{#{BDIR}stat.js\z}) {|match, js_fn|
-    dir = match[:dir]
+  rule(%r{#{BDIR}stat\.js\z}) {|match, js_fn|
+    dir = Pathname.new(match[:dir])
     stems = image_stem_list(dir)
     fs = []
     pages = {}
     stems.each_with_index {|stem, page|
-      fn = "#{dir}/.bookbox/small#{stem}_c.pnm"
-      pages[fn] = page
+      fn = Pathname.new("#{dir}.bookbox/small#{stem}_c.pnm")
+      pages[fn.to_s] = page
       make(fn)
       file_stat(fn)
       fs << fn
     }
     pnmstat_path = File.dirname(File.dirname(File.dirname(__FILE__)))+'/bin/pnmstat'
-    json = IO.popen([pnmstat_path, *fs]) {|f| f.read }
+    command = [pnmstat_path, *fs.map {|f| f.to_s }]
+    json = IO.popen(command) {|f| f.read }
     h = JSON.load(json)
     h2 = {}
     h.each {|k,v|
@@ -138,7 +128,7 @@ class BookBox::ImageMaker < ::Dep
   }
 
   rule(%r{#{PDIR}all\z}) {|match, all_fn|
-    dir = match[:dir]
+    dir = Pathname.new(match[:dir])
     stems = image_stem_list(dir)
     size = 'small'
     %w[c g m].each {|color|
@@ -150,7 +140,7 @@ class BookBox::ImageMaker < ::Dep
   }
 
   rule(%r{#{PDIR}all-full\z}) {|match, all_fn|
-    dir = match[:dir]
+    dir = Pathname.new(match[:dir])
     stems = image_stem_list(dir)
     %w[small fullsize].each {|size|
       %w[c g m].each {|color|

@@ -11,7 +11,7 @@ def strnumsortkey(s)
 end
 
 def partfile(filename)
-  partfilename = filename + ".part"
+  partfilename = filename.to_s + ".part"
   res = yield partfilename
   File.rename partfilename, filename
   res
