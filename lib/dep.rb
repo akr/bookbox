@@ -210,15 +210,6 @@ class Dep
     external_memo_log(:update, :make1, [filename])
   end
 
-  def path2rel(path)
-    directory = Thread.current[:dep_external_memo_directory]
-    Pathname(path).relative_path_from(Pathname(directory)).to_s
-  end
-  def path2abs(path)
-    directory = Thread.current[:dep_external_memo_directory]
-    (Pathname(directory)+Pathname(path)).to_s
-  end
-
   def encode_pathname(args)
     directory = Thread.current[:dep_external_memo_directory]
     directory = Pathname(directory)
@@ -231,6 +222,7 @@ class Dep
       end
     })
   end
+
   def decode_pathname(args)
     directory = Thread.current[:dep_external_memo_directory]
     directory = Pathname(directory)
