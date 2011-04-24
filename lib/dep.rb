@@ -90,7 +90,7 @@ class Dep
              reason = "no build log"
              false
            end) &&
-          (log = decode_pathname(Marshal.load(log_io))) &&
+          (log = decode_pathname(Marshal.load(log_io), Thread.current[:dep_external_memo_directory])) &&
           log["history"].all? {|type, meth, args, res|
             if type == :update
               res2 = self.send(meth, *args)
@@ -126,7 +126,7 @@ class Dep
             "result" => result
           }
           log_io.rewind
-          log_io.write Marshal.dump(encode_pathname(h))
+          log_io.write Marshal.dump(encode_pathname(h, Thread.current[:dep_external_memo_directory]))
           log_io.flush
           log_io.truncate(log_io.pos)
         ensure
@@ -210,10 +210,8 @@ class Dep
     external_memo_log(:update, :make1, [filename])
   end
 
-  def encode_pathname(args)
-    directory = Thread.current[:dep_external_memo_directory]
-    directory = Pathname(directory)
-    m = Marshal.dump(args)
+  def encode_pathname(obj, directory)
+    m = Marshal.dump(obj)
     Marshal.load(m, lambda {|o|
       if Pathname === o
         o.relative_path_from(directory)
@@ -223,10 +221,8 @@ class Dep
     })
   end
 
-  def decode_pathname(args)
-    directory = Thread.current[:dep_external_memo_directory]
-    directory = Pathname(directory)
-    m = Marshal.dump(args)
+  def decode_pathname(obj, directory)
+    m = Marshal.dump(obj)
     Marshal.load(m, lambda {|o|
       if Pathname === o
         directory+o
