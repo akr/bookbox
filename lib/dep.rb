@@ -287,6 +287,7 @@ class Dep
   end
 
   def make_source(filename, rule)
+    vmesg "source: #{filename.sub(@cwd_pat, '')}"
     choosen_output_pattern, choosen_rule_type, choosen_block = rule
     if choosen_block
       res = self.instance_exec(choosen_output_pattern.match(filename.to_s), filename, &choosen_block)
