@@ -68,13 +68,10 @@ class Dep
   def external_memo(log_filename, mesg_filename, &block)
     begin
       old_history = Thread.current[:dep_external_memo_history]
-      old_directory = Thread.current[:dep_external_memo_directory]
       Thread.current[:dep_external_memo_history] = []
-      Thread.current[:dep_external_memo_directory] = log_filename.dirname
       external_memo2(log_filename, mesg_filename, &block)
     ensure
       Thread.current[:dep_external_memo_history] = old_history
-      Thread.current[:dep_external_memo_directory] = old_directory
     end
   end
 
@@ -90,7 +87,7 @@ class Dep
              reason = "no build log"
              false
            end) &&
-          (log = decode_pathname(Marshal.load(log_io), Thread.current[:dep_external_memo_directory])) &&
+          (log = decode_pathname(Marshal.load(log_io), log_dir)) &&
           log["history"].all? {|type, meth, args, res|
             if type == :update
               res2 = self.send(meth, *args)
@@ -126,7 +123,7 @@ class Dep
             "result" => result
           }
           log_io.rewind
-          log_io.write Marshal.dump(encode_pathname(h, Thread.current[:dep_external_memo_directory]))
+          log_io.write Marshal.dump(encode_pathname(h, log_dir))
           log_io.flush
           log_io.truncate(log_io.pos)
         ensure
