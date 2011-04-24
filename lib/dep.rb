@@ -24,42 +24,47 @@ class Dep
 
   def internal_memo(obj, meth, *args)
     key = [obj, meth, args]
-    tr = Thread.current[:dep_internal_memo_transaction]
-    if tr && tr.include?(key)
-      tr[key]
-    elsif @internal_memo.include? key
-      @internal_memo[key]
+    trs = Thread.current[:dep_internal_memo_transaction]
+    if trs
+      trs.reverse_each {|tr|
+        return tr[key] if tr.include?(key)
+      }
+    end
+    if @internal_memo.include?(key)
+      return @internal_memo[key]
+    end
+    v = obj.send(meth, *args)
+    if trs && trs.last
+      trs.last[key] = v
     else
-      v = obj.send(meth, *args)
-      if tr
-        tr[key] = v
-      else
-        @internal_memo[key] = v
-      end
+      @internal_memo[key] = v
     end
   end
 
   def internal_memo_transaction
+    Thread.current[:dep_internal_memo_transaction] ||= []
+    trs = Thread.current[:dep_internal_memo_transaction]
+    new_tr = {}
+    trs.push new_tr
     begin
-      old_tr = Thread.current[:dep_internal_memo_transaction]
-      Thread.current[:dep_internal_memo_transaction] = new_tr = {}
       res = yield
-      if old_tr
-        old_tr.update new_tr
-      else
-        @internal_memo.update new_tr
-      end
-      res
     ensure
-      Thread.current[:dep_internal_memo_transaction] = old_tr
+      trs.pop
+      Thread.current[:dep_internal_memo_transaction] = nil if trs.empty?
     end
+    if !trs.empty?
+      trs.last.update new_tr
+    else
+      @internal_memo.update new_tr
+    end
+    res
   end
 
   def internal_memo_guard
     internal_memo_transaction {
       res = yield
       if !res
-        Thread.current[:dep_internal_memo_transaction].clear
+        Thread.current[:dep_internal_memo_transaction].last.clear
       end
       res
     }
