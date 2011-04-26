@@ -152,6 +152,79 @@ class BookBox::ImageMaker < ::Dep
     make("#{dir}.bookbox/stat.js")
   }
 
+  # Sony Reader
+
+  rule(%r{/\.bookbox/sr#{PSTEM}\.pnm\z}, '/.bookbox/fullsize\k<stem>_g.pnm') {|match, dst_fn, (src_fn, src_att)|
+    stem = match[:stem]
+    dir = Pathname(match.pre_match)
+    # 584x754
+    params_json_path = dir+"params.json"
+    params = file_stat(params_json_path) ? read_json(params_json_path) : {}
+    colormode = params["pages:out#{stem}.pnm:colormode"]
+    case colormode
+    when 'm'
+      run_pipeline src_fn, dst_fn,
+        %w[pnmscale -xysize 584 754],
+        %w[pnmnorm -bvalue 50 -wvalue 170],
+        %w[pnmgamma -ungamma 2],
+        %w[pnmdepth 15]
+    else
+      run_pipeline src_fn, dst_fn,
+        %w[pnmscale -xysize 584 754],
+        %w[pnmdepth 15]
+    end
+    dst_att = src_att.dup
+    if src_att.include?("dpi")
+      src_dpi = src_att["dpi"]
+      src_magic, src_w, src_h = PNM.read_header(src_fn)
+      dst_magic, dst_w, dst_h = PNM.read_header(dst_fn)
+      dst_dpi = (src_dpi.to_f / src_w * dst_w).round
+      dst_att["dpi"] = dst_dpi
+    end
+    dst_att
+  }
+
+  rule(%r{/\.bookbox/sr#{PSTEM}\.pdf\z}, '/.bookbox/sr\k<stem>.pnm') {|match, dst_fn, (src_fn, src_att)|
+    dpi_args = []
+    dpi_args = ["-density", src_att["dpi"].to_s] if src_att["dpi"]
+    compress_args = %w[-compress Zip]
+    system("convert", *dpi_args, *compress_args, src_fn.to_s, dst_fn.to_s)
+    src_att
+  }
+
+  rule(%r{/\.bookbox/sr\.pdf\z}) {|match, dst_fn|
+    dir = Pathname(match.pre_match)
+    stems = image_stem_list(dir)
+    params = file_stat(dir+"params.json") ? read_json(dir+"params.json") : {}
+    src_pdfs = []
+    stems.each {|stem|
+      if params["pages:out#{stem}.pnm:colormode"] != 'n'
+        fn = dir+".bookbox/sr#{stem}.pdf"
+        make(fn)
+        src_pdfs << fn
+      end
+    }
+    tmp1_fn = "#{dst_fn}.tmp1.pdf"
+    tmp2_fn = "#{dst_fn}.tmp2.pdf"
+    begin
+      system("pdftk", *src_pdfs.map {|fn| fn.to_s }, "cat", "output", tmp1_fn)
+      open(tmp2_fn, 'w') {|f|
+        File.foreach(tmp1_fn) {|line|
+          if line == "/Type /Catalog\n"
+            f.print "/PageLayout/TwoPageRight\n"
+            f.print "/ViewerPreferences<</Direction/R2L>>\n"
+          end
+          f.print line
+        }
+      }
+      system('pdftk', tmp2_fn, 'output', dst_fn.to_s)
+    ensure
+      File.delete tmp1_fn if File.exist? tmp1_fn
+      File.delete tmp2_fn if File.exist? tmp2_fn
+    end
+    nil
+  }
+
   def make_flip_command(angle)
     case angle
     when 0 then return nil
