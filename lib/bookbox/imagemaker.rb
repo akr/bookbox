@@ -188,7 +188,12 @@ class BookBox::ImageMaker < ::Dep
     dpi_args = []
     dpi_args = ["-density", src_att["dpi"].to_s] if src_att["dpi"]
     compress_args = %w[-compress Zip]
-    system("convert", *dpi_args, *compress_args, src_fn.to_s, dst_fn.to_s)
+    partfile(dst_fn.to_s) {|tmp_fn|
+      commandline = ["convert", *dpi_args, *compress_args, src_fn.to_s, "pdf:#{tmp_fn}"]
+      if !system(*commandline)
+        raise ArgumentError, "command failed: #{commandline.join(' ')}"
+      end
+    }
     src_att
   }
 
@@ -207,7 +212,10 @@ class BookBox::ImageMaker < ::Dep
     tmp1_fn = "#{dst_fn}.tmp1.pdf"
     tmp2_fn = "#{dst_fn}.tmp2.pdf"
     begin
-      system("pdftk", *src_pdfs.map {|fn| fn.to_s }, "cat", "output", tmp1_fn)
+      commandline = ["pdftk", *src_pdfs.map {|fn| fn.to_s }, "cat", "output", tmp1_fn]
+      if !system(*commandline)
+        raise ArgumentError, "command failed: #{commandline.join(' ')}"
+      end
       open(tmp2_fn, 'w') {|f|
         File.foreach(tmp1_fn) {|line|
           if line == "/Type /Catalog\n"
@@ -217,7 +225,10 @@ class BookBox::ImageMaker < ::Dep
           f.print line
         }
       }
-      system('pdftk', tmp2_fn, 'output', dst_fn.to_s)
+      commandline = ['pdftk', tmp2_fn, 'output', dst_fn.to_s]
+      if !system(*commandline)
+        raise ArgumentError, "command failed: #{commandline.join(' ')}"
+      end
     ensure
       File.delete tmp1_fn if File.exist? tmp1_fn
       File.delete tmp2_fn if File.exist? tmp2_fn

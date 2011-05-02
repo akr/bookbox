@@ -338,14 +338,16 @@ class Dep
   end
 
   def run_pipeline1(input_filename, output_filename, *commands)
-    commands = commands.compact
-    if commands.empty?
-      FileUtils.cp input_filename, output_filename
-      []
-    else
-      commands[0] = commands[0] + [input_filename]
-      commands[-1] = commands[-1] + [:out => output_filename]
-      Open3.pipeline(*commands)
-    end
+    partfile(output_filename) {|tmp_filename|
+      commands = commands.compact
+      if commands.empty?
+        FileUtils.cp input_filename, tmp_filename
+        []
+      else
+        commands[0] = commands[0] + [input_filename]
+        commands[-1] = commands[-1] + [:out => tmp_filename]
+        Open3.pipeline(*commands)
+      end
+    }
   end
 end
