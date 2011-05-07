@@ -4,7 +4,7 @@ require 'erb'
 
 #$opt_image_dir = '.'
 $opt_docroot = File.dirname(File.dirname(File.dirname(File.dirname(File.realpath(__FILE__))))) + "/docroot"
-$opt_verbose = false
+$opt_verbose = 0
 
 include ERB::Util
 
@@ -12,7 +12,7 @@ def op_server
   op = OptionParser.new
   op.banner = 'Usage: bookbox server directory...'
   op.def_option('-h', '--help', 'show help message') { puts op; exit 0 }
-  op.def_option('--verbose', 'verbose mode') { $opt_verbose = true }
+  op.def_option('--verbose', 'verbose mode') { $opt_verbose += 1 }
   #op.def_option('-d DIR', '--image-dir DIR', 'image directory (default: ".")') {|arg| $opt_image_dir = arg }
   op
 end
@@ -194,7 +194,7 @@ def main_server(argv)
     dirs[basename] = dir
   }
   im = BookBox::ImageMaker.new
-  im.verbose = true if $opt_verbose
+  im.verbose = $opt_verbose
   webrick_config = {
     :DocumentRoot => '/home/username/public_html/',
     :BindAddress => '127.0.0.1',

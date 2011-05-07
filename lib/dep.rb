@@ -11,15 +11,23 @@ class Dep
   end
 
   def initialize
-    @verbose = defined?($opt_verbose) ? $opt_verbose : false
+    @verbose = defined?($opt_verbose) ? $opt_verbose.to_i : 0
     @internal_memo = {}
     @cwd_pat = %r{\A#{Regexp.escape Dir.pwd}/}
   end
 
   attr_accessor :verbose
 
+  def mesg(mesg)
+    STDERR.print "#{mesg}\n" if 0 <= @verbose
+  end
+
   def vmesg(mesg)
-    STDERR.print "#{mesg}\n" if @verbose
+    STDERR.print "#{mesg}\n" if 1 <= @verbose
+  end
+
+  def vvmesg(mesg)
+    STDERR.print "#{mesg}\n" if 2 <= @verbose
   end
 
   def internal_memo(obj, meth, *args)
@@ -81,7 +89,7 @@ class Dep
   end
 
   def external_memo2(log_filename, mesg_filename)
-    vmesg "try: #{mesg_filename}"
+    vvmesg "try: #{mesg_filename}"
     log_dir = log_filename.dirname
     log_dir.mkpath if !log_dir.directory?
     log_filename.open(File::RDWR|File::CREAT, 0644) {|log_io|
@@ -117,7 +125,7 @@ class Dep
         vmesg "skip: #{mesg_filename}"
         log["result"]
       else
-        vmesg reason.gsub(/^/) { "build start: #{mesg_filename} because " }
+        vvmesg reason.gsub(/^/) { "build start: #{mesg_filename} because " }
         begin
           old_history = Thread.current[:dep_external_memo_history]
           Thread.current[:dep_external_memo_history] = []
@@ -134,7 +142,7 @@ class Dep
         ensure
           Thread.current[:dep_external_memo_history] = old_history
         end
-        vmesg "build done: #{mesg_filename}"
+        mesg "built: #{mesg_filename}"
         result
       end
     }
@@ -287,7 +295,7 @@ class Dep
   end
 
   def make_source(filename, rule)
-    vmesg "source: #{filename.sub(@cwd_pat, '')}"
+    vvmesg "source: #{filename.sub(@cwd_pat, '')}"
     choosen_output_pattern, choosen_rule_type, choosen_block = rule
     if choosen_block
       res = self.instance_exec(choosen_output_pattern.match(filename.to_s), filename, &choosen_block)

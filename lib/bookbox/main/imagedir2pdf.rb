@@ -4,7 +4,7 @@ require_relative 'images2pdf'
 
 def op_imagedir2pdf
   op = OptionParser.new
-  op.def_option('--verbose', 'verbose mode') { $opt_verbose = true }
+  op.def_option('--verbose', 'verbose mode') { $opt_verbose += 1 }
   op
 end
 

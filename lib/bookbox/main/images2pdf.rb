@@ -12,12 +12,12 @@ def err(mesg)
 end
 
 $opt_o = nil
-$opt_verbose = false
+$opt_verbose = 0
 $opt_viewerprefiernces_direction = nil
 def op_images2pdf
   op = OptionParser.new
   op.def_option('-o OUTPUTFILE', '--output OUTPUTFILE', 'output PDF file') {|arg| $opt_o = arg }
-  op.def_option('--verbose', 'verbose mode') { $opt_verbose = true }
+  op.def_option('--verbose', 'verbose mode') { $opt_verbose += 1 }
   op
 end
 
@@ -73,10 +73,10 @@ def main_images2pdf(argv)
       when %r{(\A|/)\.dep-[^/]*\.marshal\z}
         next
       when /\.pdf\z/i
-        STDERR.puts "use #{f.inspect} as is." if $opt_verbose
+        STDERR.puts "use #{f.inspect} as is." if 0 < $opt_verbose
         pdfs << f
       when /\.(tiff?)\z/i
-        STDERR.puts "convert #{f.inspect} to pdf." if $opt_verbose
+        STDERR.puts "convert #{f.inspect} to pdf." if 0 < $opt_verbose
         n = num_generated
         num_generated += 1
         tf = "#{d}/t#{n}.pnm"
@@ -95,7 +95,7 @@ def main_images2pdf(argv)
         system("convert", "-density", dpi.to_s, f, of)
         pdfs << of
       when /\.(pnm|pbm|pgm|ppm|xpm|gif|lbm|tga|pcx|jpe?g|png|ps|eps)\z/i
-        STDERR.puts "convert #{f.inspect} to pdf." if $opt_verbose
+        STDERR.puts "convert #{f.inspect} to pdf." if 0 < $opt_verbose
         n = num_generated
         num_generated += 1
         of = "#{d}/t#{n}.pdf"
@@ -109,7 +109,7 @@ def main_images2pdf(argv)
         warn "unexpected file type: #{f.inspect}"
       end
     }
-    STDERR.puts "generate result pdf: #{out.inspect}" if $opt_verbose
+    STDERR.puts "generate result pdf: #{out.inspect}" if 0 < $opt_verbose
     commandline = ["pdftk"]
     commandline.concat pdfs
     commandline << "cat" << "output" << out
