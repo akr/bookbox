@@ -165,8 +165,7 @@ class BookBox::ImageMaker < ::Dep
     when 'm'
       run_pipeline src_fn, dst_fn,
         %w[pnmscale -xysize 584 754],
-        %w[pnmnorm -bvalue 50 -wvalue 170],
-        %w[pnmgamma -ungamma 2],
+        %w[pnmnorm -bvalue 50 -wvalue 220],
         %w[pnmdepth 15]
     else
       run_pipeline src_fn, dst_fn,
