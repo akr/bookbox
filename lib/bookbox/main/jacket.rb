@@ -18,8 +18,7 @@ def find_pages(filenames)
   }
 
   rotate = false
-  if sizes.map {|fn, w, h| w }.uniq.length == 1 &&
-     sizes.map {|fn, w, h| h }.uniq.length != 1
+  if true # xxx: should read scan.json.
     sizes.map! {|fn, w, h| [fn, h, w] }
     rotate = true
   end
@@ -50,11 +49,11 @@ def main_jacket(argv)
     raise "title page already exist: #{filenames[0]}"
   end
 
+  fp = find_pages(filenames)
   rotate,
   jacket_fn, jacket_w,
   cover_fn, cover_w,
-  content_fn, content_w = find_pages(filenames)
-  #p find_pages(filenames)
+  content_fn, content_w = fp
 
   content_w = (content_w * 1.05).round
 

@@ -15,6 +15,7 @@ require 'open3'
 $opt_d = '.'
 $opt_s = nil
 $opt_f = nil
+$opt_w = 215.872
 
 def op_scan
   op = OptionParser.new
@@ -22,12 +23,32 @@ def op_scan
   op.def_option('-d DIR', '--destination-directory DIR', 'destination directory') {|arg| $opt_d = arg }
   op.def_option('-s START', '--start-page START', 'start page number') {|arg| $opt_s = arg }
   op.def_option('-f', '--force-scan', 'disable double feed detection') { $opt_f = true }
+  op.def_option('-w WIDTH', '--scan-width WIDTH', 'specify scan width') {|arg| $opt_w = parse_length(arg) }
   op
 end
 
-def main_scan(argv, width=215.872)
+def parse_length(arg)
+  if /\A(\d+(?:\.\d+)?)(cm|mm)\z/ =~ arg
+    n = $1.to_f
+    u = $2
+    case u
+    when 'cm'
+      n *= 10
+    when 'mm'
+    else
+      raise ArgumentError, "unexpected unit: #{unit}"
+    end
+  else
+    raise ArgumentError, "invalid length: #{arg}"
+  end
+  n
+end
+
+def main_scan(argv)
   op = op_scan
   op.parse(argv)
+
+  width = $opt_w
 
   outdir = $opt_d
   unless File.directory? outdir
@@ -77,6 +98,7 @@ def main_scan(argv, width=215.872)
     "-y", "876.695",
     "--page-height", "876.695",
     "--ald=yes",
+    #"--swcrop=yes",
     *df_options
   ]
   p command
