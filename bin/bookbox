@@ -14,7 +14,11 @@ def main(argv)
     main_scan argv
   when 'scan-shinsho'
     require_relative '../lib/bookbox/main/scan'
-    $opt_w = 190
+    $opt_w = 175
+    main_scan argv
+  when 'scan-b6'
+    require_relative '../lib/bookbox/main/scan'
+    $opt_w = 185
     main_scan argv
   when 'scan-a5'
     require_relative '../lib/bookbox/main/scan'
